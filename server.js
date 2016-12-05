@@ -12,6 +12,7 @@ import routes from './routes';
 import config from 'config';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
+import Promise from 'bluebird';
 
 // const app = express().use('*', cors());
 const app = express();
@@ -21,8 +22,8 @@ app.use(bodyParser.json({ verify: verifyRequestSignature }));
 /*
 * MONGO DB Connection
 */
-
-mongoose.connect('mongodb://localhost/test');
+Promise.promisifyAll(require("mongoose"));
+mongoose.connect(config.mongo_url);
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 
