@@ -1,4 +1,3 @@
-import prettyjson from 'prettyjson';
 import { Message, User } from '../model/mongo';
 import request from 'request';
 import config from 'config';
@@ -24,10 +23,6 @@ exports.manageEntry = function(entry){
   return new Promise(function(resolve, reject){
     let pageID = entry.id;
     let timeOfEvent = entry.time;
-
-    if(process.env.NODE_ENV != "production"){
-      console.log(`\nENTRY\n${prettyjson.render(entry,prettyConfig)}`);
-    }
 
     //Remove the entries that does not have a message object
     let rightMessages = [];
@@ -107,7 +102,6 @@ exports.getFacebookUserInfos = function(userId){
       }
       else{
         console.error("Request error : " + error);
-        console.error("Body of error : " + prettyjson.render(body));
         reject(error);
       }
 

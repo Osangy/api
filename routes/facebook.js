@@ -1,5 +1,4 @@
 import config from 'config';
-import prettyjson from 'prettyjson';
 import { manageEntry } from '../utils/facebookUtils';
 
 let prettyConfig = {
