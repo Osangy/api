@@ -8,41 +8,82 @@ import cors from 'cors';
 import { graphqlExpress, graphiqlExpress } from 'graphql-server-express';
 import { printSchema } from 'graphql/utilities/schemaPrinter';
 import schema from './data/schema';
+import routes from './routes';
+import config from 'config';
+import crypto from 'crypto';
+import mongoose from 'mongoose';
 
 // const app = express().use('*', cors());
 const app = express();
 app.set('port', (process.env.PORT || 3001));
+app.use(bodyParser.json({ verify: verifyRequestSignature }));
 
-app.get('/', (req,res) => {
-  res.send("Cooucou");
-});
+/*
+* MONGO DB Connection
+*/
+
+mongoose.connect('mongodb://localhost/test');
+var db = mongoose.connection;
+db.on('error', console.error.bind(console, 'connection error:'));
+
+
+
+/*
+* Facebook API
+*/
+
+app.get('/webhook', routes.facebook.webhookValidation);
+app.post('/webhook', routes.facebook.webhookPost);
+
+/*
+ * Verify that the callback came from Facebook. Using the App Secret from
+ * the App Dashboard, we can verify the signature that is sent with each
+ * callback in the x-hub-signature field, located in the header.
+ *
+ */
+
+function verifyRequestSignature(req, res, buf) {
+  var signature = req.headers["x-hub-signature"];
+
+  if (!signature) {
+    // For testing, let's log an error. In production, you should throw an
+    // error.
+    console.error("Couldn't validate the signature.");
+  } else {
+    var elements = signature.split('=');
+    var method = elements[0];
+    var signatureHash = elements[1];
+
+    var expectedHash = crypto.createHmac('sha1', config.appSecret)
+                        .update(buf)
+                        .digest('hex');
+
+    if (signatureHash != expectedHash) {
+      throw new Error("Couldn't validate the request signature.");
+    }
+  }
+}
+
+
+/*
+* GraphQL
+*/
 
 app.use('/graphql', bodyParser.json(), graphqlExpress({ schema: schema }));
-
 app.use('/graphiql', graphiqlExpress({
   endpointURL: '/graphql',
 }));
-
 app.use('/schema', (req, res) => {
   res.set('Content-Type', 'text/plain');
   res.send(printSchema(schema));
 });
 
-app.listen(app.get('port'),() => console.log(
-  `Server running on port ${app.get('port')}`
-));
 
-// const app = express();
-//
-//
-//
 
-//
-// app.use('/graphql', graphqlHTTP({
-//   schema: Schema,
-//   graphiql: true
-// }));
-//
-// app.listen(3000, () => {
-//   console.log({running: true});
-// })
+db.once('open', function() {
+  console.log("Connected to the database");
+
+  app.listen(app.get('port'),() => console.log(
+    `Server running on port ${app.get('port')}`
+  ));
+});
