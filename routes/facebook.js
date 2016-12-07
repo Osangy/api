@@ -1,5 +1,6 @@
 import config from 'config';
-import { manageEntry } from '../utils/facebookUtils';
+import { manageEntry, sendMessage } from '../utils/facebookUtils';
+//import prettyjson from 'prettyjson';
 
 let prettyConfig = {
   keysColor: 'rainbow',
@@ -40,6 +41,8 @@ exports.webhookPost = function(req, res){
     // There may be multiple if batched
     data.entry.forEach(function(pageEntry) {
 
+      //console.log(prettyjson.render(pageEntry, prettyConfig));
+
       promise = promise.then(function(){
         return manageEntry(pageEntry);
       });
@@ -49,6 +52,9 @@ exports.webhookPost = function(req, res){
 
     promise.then(function(){
       console.log("Finished work");
+
+
+
       res.sendStatus(200);
     }).catch(function(error){
       console.log("Finished work with ERROR");
@@ -60,3 +66,16 @@ exports.webhookPost = function(req, res){
     res.sendStatus(200);
   }
 };
+
+
+
+exports.sendTest = function(req, res){
+
+  sendMessage("994765810633262", "Hello gros ;)").then(function(body){
+    res.sendStatus(200);
+  }).catch(function(err){
+    res.status(500).send(err.message);
+  })
+
+
+}

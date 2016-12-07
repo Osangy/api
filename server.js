@@ -7,7 +7,7 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import { graphqlExpress, graphiqlExpress } from 'graphql-server-express';
 import { printSchema } from 'graphql/utilities/schemaPrinter';
-import schema from './data/schema';
+import schema from './schema';
 import routes from './routes';
 import config from 'config';
 import crypto from 'crypto';
@@ -17,7 +17,7 @@ import Promise from 'bluebird';
 // const app = express().use('*', cors());
 const app = express();
 app.set('port', (process.env.PORT || 3001));
-app.use(bodyParser.json({ verify: verifyRequestSignature }));
+//app.use();
 
 /*
 * MONGO DB Connection
@@ -33,8 +33,9 @@ db.on('error', console.error.bind(console, 'connection error:'));
 * Facebook API
 */
 
-app.get('/webhook', routes.facebook.webhookValidation);
-app.post('/webhook', routes.facebook.webhookPost);
+app.get('/webhook', bodyParser.json({ verify: verifyRequestSignature }), routes.facebook.webhookValidation);
+app.get("/test", routes.facebook.sendTest);
+app.post('/webhook', bodyParser.json({ verify: verifyRequestSignature }), routes.facebook.webhookPost);
 
 /*
  * Verify that the callback came from Facebook. Using the App Secret from
@@ -70,7 +71,12 @@ function verifyRequestSignature(req, res, buf) {
 * GraphQL
 */
 
-app.use('/graphql', bodyParser.json(), graphqlExpress({ schema: schema }));
+app.use('/graphql', bodyParser.json(), graphqlExpress({
+  schema: schema,
+  context: {
+    pageId: config.page_id
+  },
+ }));
 app.use('/graphiql', graphiqlExpress({
   endpointURL: '/graphql',
 }));

@@ -1,4 +1,4 @@
-import { Message, User } from '../model/mongo';
+import { Message, User } from '../mongo/model';
 import request from 'request';
 import config from 'config';
 import Promise from 'bluebird'
@@ -27,9 +27,14 @@ exports.manageEntry = function(entry){
     //Remove the entries that does not have a message object
     let rightMessages = [];
     entry.messaging.forEach(function(messagingEvent){
+
+      //Event with a message
       if (messagingEvent.message) {
         rightMessages.push(messagingEvent);
       }
+
+      //TODO: Message delivery
+      //TODO: Message read
     })
 
 
@@ -107,5 +112,44 @@ exports.getFacebookUserInfos = function(userId){
 
     });
   });
+
+}
+
+
+
+/*
+* Send a message to a user
+*/
+
+exports.sendMessage = function(recipientId, text){
+
+  const messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      text: text
+    }
+  };
+
+  return new Promise(function(resolve, reject){
+    request({
+      uri: 'https://graph.facebook.com/v2.6/me/messages',
+      qs: { access_token: config.pageAccessToken },
+      method: 'POST',
+      json: messageData
+
+    }, function (error, response, body) {
+      if (!error && response.statusCode == 200) {
+        var recipientId = body.recipient_id;
+        var messageId = body.message_id;
+
+        resolve(body);
+      } else {
+        reject(err);
+      }
+    });
+  });
+
 
 }

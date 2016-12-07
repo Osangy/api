@@ -15,6 +15,7 @@ var MessageSchema = mongoose.Schema({
     mid: String,
     seq: Number,
     text: String,
+    is_echo: Boolean,
     sender: {
       type: Schema.Types.ObjectId,
       ref: 'User'
@@ -24,7 +25,7 @@ var MessageSchema = mongoose.Schema({
       ref: 'User'
     },
     timestamp: Date,
-    attachments: Schema.Types.Mixed,
+    attachments: [Schema.Types.Mixed],
     quick_reply: Schema.Types.Mixed,
     conversation: {
       type: Schema.Types.ObjectId,
@@ -33,15 +34,16 @@ var MessageSchema = mongoose.Schema({
     }
 });
 
-//Create a new message entry
+
+/*
+* Create a new message entry
+*/
+
 MessageSchema.statics.createFromFacebook = function(messageObject, pageId){
 
-  //See if the user is the recipient or the sender
-  const user_id = (messageObject.sender.id != pageId) ? messageObject.sender.id : messageObject.recipient.id;
-  const is_sender = (messageObject.sender.id == user_id) ? true : false;
-
+  //See if the emssage was sent by the page or the user
+  let user_id = (messageObject.message.is_echo) ? messageObject.recipient.id : messageObject.sender.id
   let user;
-  let conversation;
 
 
   return new Promise(function(resolve, reject){
@@ -55,20 +57,21 @@ MessageSchema.statics.createFromFacebook = function(messageObject, pageId){
       return Conversation.findOrCreate(userObject, pageId);
     }).then(function(conversationObject){
 
-      conversation = conversationObject
 
       //Create the message
       let message = new Message({ mid: messageObject.message.mid});
-      if(is_sender){
-        message.sender = user;
-      }
-      else{
+      if(messageObject.message.is_echo){
         message.recipient = user;
       }
+      else{
+        message.sender = user;
+      }
+
       if(messageObject.message.text) message.text = messageObject.message.text;
       if(messageObject.message.seq) message.seq = messageObject.message.seq;
       if(messageObject.message.attachments) message.attachments = messageObject.message.attachments;
-      message.conversation = conversation;
+      message.conversation = conversationObject;
+      message.is_echo = (messageObject.message.is_echo) ? true : false;
 
       //TODO : increment message counter and date in conversation
       return message.save();
@@ -104,7 +107,11 @@ var UserSchema = mongoose.Schema({
   timestamps: true
 });
 
-//Find a user, if does not exists create it
+
+/*
+* Find a user, if does not exist create it
+*/
+
 UserSchema.statics.createOrFindUser = function(user_id){
   return new Promise(function(resolve, reject){
 
@@ -131,8 +138,10 @@ UserSchema.statics.createOrFindUser = function(user_id){
   })
 }
 
+/*
+* Create a user from the Facebook infos
+*/
 
-//Create a user from Facebook infos
 UserSchema.statics.createFromFacebook = function(user_id){
 
   return new Promise(function(resolve, reject){
@@ -186,6 +195,10 @@ var ConversationSchema = mongoose.Schema({
     last_message_date: Date
 });
 
+/*
+* Find a conversation, or create if it does not exists.
+*/
+
 ConversationSchema.statics.findOrCreate = function(user, page_id){
 
   return new Promise(function(resolve, reject){
@@ -222,3 +235,4 @@ let Conversation = mongoose.model('Conversation', ConversationSchema);
 
 exports.Message = Message;
 exports.User = User;
+exports.Conversation = Conversation;
