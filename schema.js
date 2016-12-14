@@ -1,6 +1,6 @@
 import { schema as mongoSchema, resolvers as mongoResolvers } from './mongo/schema';
 import { makeExecutableSchema } from 'graphql-tools';
-import { merge } from 'lodash';
+import { merge, reverse } from 'lodash';
 import { User, Message, Conversation } from './mongo/model';
 import { sendMessage } from './utils/facebookUtils';
 
@@ -37,7 +37,7 @@ const rootResolvers = {
     message(root, {limit, conversationId}, context) {
       console.log("Facebook page id requesting : ", context.pageId);
       const limitValidator = (limit > 30) ? 30 : limit;
-      return Message.find({conversation: conversationId}).sort({seq : -1}).limit(limit);
+      return reverse(Message.find({conversation: conversationId}).sort({seq : -1}).limit(limit));
     },
     conversation(root, { limit }, context){
       const limitValidator = (limit > 20) ? 10 : limit;
