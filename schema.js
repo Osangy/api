@@ -9,7 +9,7 @@ const rootSchema = [`
 
   type Query {
     # A list of message
-    message(limit: Int = 10, conversationId: String!) : [Message]
+    message(limit: Int = 30, conversationId: String!) : [Message]
 
     # The list of conversations of a page_id
     conversation(limit: Int = 10): [Conversation]
@@ -36,8 +36,8 @@ const rootResolvers = {
   Query: {
     message(root, {limit, conversationId}, context) {
       console.log("Facebook page id requesting : ", context.pageId);
-      const limitValidator = (limit > 20) ? 20 : limit;
-      return Message.find({conversation: conversationId}).sort({timestamp : -1}).limit(limit);
+      const limitValidator = (limit > 30) ? 30 : limit;
+      return Message.find({conversation: conversationId}).sort({timestamp : 1}).limit(limit);
     },
     conversation(root, { limit }, context){
       const limitValidator = (limit > 20) ? 10 : limit;
