@@ -40,10 +40,10 @@ const rootResolvers = {
 
       return Promise.resolve()
         .then(() => (
-           Message.find({conversation: conversationId}).sort({seq : -1}).limit(limit);
+           Message.find({conversation: conversationId}).sort({seq : -1}).limit(limit)
         ))
         .then((messages) => (
-          reverse(messages);
+          reverse(messages)
         ));
     },
     conversation(root, { limit }, context){
