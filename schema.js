@@ -37,8 +37,8 @@ const rootResolvers = {
     message(root, {limit, conversationId}, context) {
       console.log("Facebook page id requesting : ", context.pageId);
       const limitValidator = (limit > 30) ? 30 : limit;
-      let messages = Message.find({conversation: conversationId}).sort({seq : -1}).limit(limit)
-      return messages.reverse();
+      let messages = Message.find({conversation: conversationId}).sort({seq : -1}).limit(limit);
+      return reverse(messages);
     },
     conversation(root, { limit }, context){
       const limitValidator = (limit > 20) ? 10 : limit;
