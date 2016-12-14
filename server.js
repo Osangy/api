@@ -17,6 +17,7 @@ import Promise from 'bluebird';
 // const app = express().use('*', cors());
 const app = express();
 app.set('port', (process.env.PORT || 3001));
+app.use('*', cors());
 //app.use();
 
 /*
