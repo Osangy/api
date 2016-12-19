@@ -12,7 +12,7 @@ const rootSchema = [`
     message(limit: Int = 30, conversationId: String!) : [Message]
 
     # The list of conversations of a page_id
-    conversation(limit: Int = 10): [Conversation]
+    conversation(pageId:String!, limit: Int = 10): [Conversation]
 
     # The information about a user
     user(facebookId: String!): User
@@ -46,9 +46,9 @@ const rootResolvers = {
           reverse(messages)
         ));
     },
-    conversation(root, { limit }, context){
+    conversation(root, { pageId, limit }, context){
       const limitValidator = (limit > 20) ? 10 : limit;
-      return Conversation.find({ page_id: context.pageId}).limit(limit);
+      return Conversation.find({ page_id: pageId}).limit(limit);
     },
     user(root, { facebookId }, context){
       return User.findOne({ facebook_id: facebookId });
@@ -64,13 +64,6 @@ const rootResolvers = {
         .then((body) => (
           JSON.stringify(body)
         ));
-
-
-      // sendMessage(facebookId, text).then(function(body){
-      //   return JSON.stringify(body);
-      // }).catch(function(err){
-      //   return `Error : ${err.message}`;
-      // })
     }
   }
 };
