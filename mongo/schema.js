@@ -44,6 +44,9 @@ export const schema = [`
 
   # A Conversation between a page and a user
   type Conversation {
+    #The conversation id
+    _id: ID!
+
     # The id of the page that is concerned by this conversation
     pageId: String!
 
