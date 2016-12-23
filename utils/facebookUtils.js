@@ -1,7 +1,7 @@
 import { Message, User } from '../mongo/model';
 import request from 'request';
 import config from 'config';
-import Promise from 'bluebird'
+import Promise from 'bluebird';
 
 let prettyConfig = {
   keysColor: 'rainbow',
@@ -24,6 +24,8 @@ exports.manageEntry = function(entry){
     let pageID = entry.id;
     let timeOfEvent = entry.time;
 
+
+
     //Remove the entries that does not have a message object
     let rightMessages = [];
     entry.messaging.forEach(function(messagingEvent){
@@ -37,6 +39,13 @@ exports.manageEntry = function(entry){
       //TODO: Message read
     })
 
+
+    //Mark the messages as received
+    if(rightMessages.length > 0){
+      if(!rightMessages[0].is_echo){
+        sendAction(rightMessages[0].sender.id);
+      }
+    }
 
     Promise.each(rightMessages, function(messagingEvent){
       return manageMessage(messagingEvent, pageID);
@@ -71,6 +80,14 @@ function manageMessage(messageObject, pageID){
     }
 
     Message.createFromFacebook(messageObject, pageID).then(function(message){
+      if(message.text == "cool"){
+        if(message.sender){
+          sendMessage(message.sender.facebook_id, "Je sais ;)").then(function(){
+            resolve(message);
+          })
+        }
+      }
+
       resolve(message);
     }).catch(function(err){
       reject(err);
@@ -121,7 +138,7 @@ exports.getFacebookUserInfos = function(userId){
 * Send a message to a user
 */
 
-exports.sendMessage = function(recipientId, text){
+var sendMessage = exports.sendMessage = function(recipientId, text){
 
   const messageData = {
     recipient: {
@@ -146,10 +163,52 @@ exports.sendMessage = function(recipientId, text){
 
         resolve(body);
       } else {
-        reject(err);
+        if(err){
+          reject(err);
+        }
+        else{
+          let error = new Error("Error when sending facebook message");
+          reject(error)
+        }
+
       }
     });
   });
 
 
 }
+
+
+function sendAction(recipientId, action = "mark_seen"){
+  const messageData = {
+    recipient: {
+      id: recipientId
+    },
+    sender_action: action
+  };
+
+  return new Promise(function(resolve, reject){
+    request({
+      uri: 'https://graph.facebook.com/v2.6/me/messages',
+      qs: { access_token: config.pageAccessToken },
+      method: 'POST',
+      json: messageData
+
+    }, function (error, response, body) {
+      if (!error && response.statusCode == 200) {
+        resolve(body);
+      } else {
+        if(err){
+          reject(err);
+        }
+        else{
+          let error = new Error("Error when sending sender action");
+          reject(error)
+        }
+
+      }
+    });
+  });
+}
+
+exports.sendAction = sendAction;

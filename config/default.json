@@ -1,6 +1,6 @@
 {
-    "appSecret": "ff8240b4b9b2b044c107690d166621e6",
-    "pageAccessToken": "EAAYY6pv7jEUBAEim4BkHERaVGBfZCg2E3uvBD2ZB2I6eT92uivXLzm6ZAQAjITEwKZAILLW862ZCJFZBmzmYAJaxSzJi5T2MxdvHOtzL3NZBJnFZBaNTa4I5Y2XnDg4TggOIY95ju7ZC0zDVEZCFPvzW7AC6o7eX5pbWUXZBCFogpsJagZDZD",
+    "appSecret": "0fa03326d2e37eae653443d93101212b",
+    "pageAccessToken": "EAAHZBZCMzElzoBAEd76dCNCdstpR62t2DIC3AV1ZBekUYEzq89axyGBjmwCPM12puMxrxVZCIWWfWcCEcIynn6G4SRn8bkuVnhYXzTK4cZCC4wifqtl1k1lnLXyetUYij8dKp8TCEGQ1iZAEy5H6DbGRbaFl0TOcgmdrli3wAlMAZDZD",
     "validationToken": "adrien_test",
     "serverURL": "",
     "mongo_url":"mongodb://localhost/test",

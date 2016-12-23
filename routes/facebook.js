@@ -1,5 +1,5 @@
 import config from 'config';
-import { manageEntry, sendMessage } from '../utils/facebookUtils';
+import { manageEntry, sendMessage, sendAction } from '../utils/facebookUtils';
 //import prettyjson from 'prettyjson';
 
 let prettyConfig = {
@@ -32,10 +32,14 @@ exports.webhookValidation = function(req, res){
 exports.webhookPost = function(req, res){
   var data = req.body;
 
+  //console.log(prettyjson.render(data, prettyConfig));
+
   // Make sure this is a page subscription
   if (data.object == 'page') {
 
     let promise = Promise.resolve(null);
+
+
 
     // Iterate over each entry
     // There may be multiple if batched
@@ -71,7 +75,7 @@ exports.webhookPost = function(req, res){
 
 exports.sendTest = function(req, res){
 
-  sendMessage("994765810633262", "Hello gros ;)").then(function(body){
+  sendMessage("1125296200919840", "Hello gros ;)").then(function(body){
     res.sendStatus(200);
   }).catch(function(err){
     res.status(500).send(err.message);
