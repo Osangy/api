@@ -42,7 +42,7 @@ exports.manageEntry = function(entry){
 
     //Mark the messages as received
     if(rightMessages.length > 0){
-      if(!rightMessages[0].is_echo){
+      if(!rightMessages[0].message.is_echo){
         sendAction(rightMessages[0].sender.id);
       }
     }
@@ -198,8 +198,8 @@ function sendAction(recipientId, action = "mark_seen"){
       if (!error && response.statusCode == 200) {
         resolve(body);
       } else {
-        if(err){
-          reject(err);
+        if(error){
+          reject(error);
         }
         else{
           let error = new Error("Error when sending sender action");
