@@ -1,17 +1,76 @@
 import mongoose from 'mongoose';
 import Promise from 'bluebird';
 import { getFacebookUserInfos } from '../utils/facebookUtils';
+import moment from 'moment';
+
+const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 
 
 
 let Schema = mongoose.Schema
   , ObjectId = Schema.ObjectId;
 
+//================================
+// Shop Schema
+//================================
+const ShopSchema = new Schema({
+    email: {
+      type: String,
+      lowercase: true,
+      unique: true,
+      required: true
+    },
+    password: {
+      type: String,
+      required: true
+    },
+    shopName: {
+      type: String,
+      required: true
+    },
+    shopUrl: { type: String },
+    pageId: { type: String },
+    pageToken: { type: String },
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date }
+  },
+  {
+    timestamps: true
+});
+
+// Pre-save of user to database, hash password if password is modified or new
+ShopSchema.pre('save', function(next) {
+  const shop = this,
+        SALT_FACTOR = 5;
+
+  if (!shop.isModified('password')) return next();
+
+  bcrypt.genSalt(SALT_FACTOR, function(err, salt) {
+    if (err) return next(err);
+
+    bcrypt.hash(shop.password, salt, null, function(err, hash) {
+      if (err) return next(err);
+      shop.password = hash;
+      next();
+    });
+  });
+});
+
+// Method to compare password for login
+ShopSchema.methods.comparePassword = function(candidatePassword, cb) {
+  bcrypt.compare(candidatePassword, this.password, function(err, isMatch) {
+    if (err) { return cb(err); }
+
+    cb(null, isMatch);
+  });
+}
+
+
   /*
   * MESSAGE SCHEMA
   */
 
-var MessageSchema = mongoose.Schema({
+const MessageSchema = mongoose.Schema({
     mid: String,
     seq: Number,
     text: String,
@@ -25,21 +84,24 @@ var MessageSchema = mongoose.Schema({
       ref: 'User'
     },
     timestamp: Date,
-    attachments: [Schema.Types.Mixed],
+    attachments: [],
     quick_reply: Schema.Types.Mixed,
     conversation: {
       type: Schema.Types.ObjectId,
       ref: 'Conversation',
       index: true
     }
-});
+  },
+  {
+    timestamps: true
+  });
 
 
 /*
 * Create a new message entry
 */
 
-MessageSchema.statics.createFromFacebook = function(messageObject, pageId){
+MessageSchema.statics.createFromFacebook = function(messageObject, shop){
 
   //See if the emssage was sent by the page or the user
   let user_id = (messageObject.message.is_echo) ? messageObject.recipient.id : messageObject.sender.id
@@ -49,12 +111,12 @@ MessageSchema.statics.createFromFacebook = function(messageObject, pageId){
   return new Promise(function(resolve, reject){
 
     //See if user exists, or create one
-    User.createOrFindUser(user_id).then(function(userObject){
+    User.createOrFindUser(user_id, shop).then(function(userObject){
 
       user = userObject;
 
       //See if conversation exists, or create one
-      return Conversation.findOrCreate(userObject, pageId);
+      return Conversation.findOrCreate(userObject, shop);
     }).then(function(conversationObject){
 
 
@@ -67,7 +129,10 @@ MessageSchema.statics.createFromFacebook = function(messageObject, pageId){
         message.sender = user;
       }
 
+
+
       if(messageObject.message.text) message.text = messageObject.message.text;
+      if(messageObject.timestamp) message.timestamp = moment(messageObject.timestamp);
       if(messageObject.message.seq) message.seq = messageObject.message.seq;
       if(messageObject.message.attachments) message.attachments = messageObject.message.attachments;
       message.conversation = conversationObject;
@@ -94,7 +159,7 @@ MessageSchema.statics.createFromFacebook = function(messageObject, pageId){
 * USER SCHEMA
 */
 
-var UserSchema = mongoose.Schema({
+const UserSchema = mongoose.Schema({
     facebook_id: String,
     first_name: String,
     last_name: String,
@@ -112,7 +177,7 @@ var UserSchema = mongoose.Schema({
 * Find a user, if does not exist create it
 */
 
-UserSchema.statics.createOrFindUser = function(user_id){
+UserSchema.statics.createOrFindUser = function(user_id, shop){
   return new Promise(function(resolve, reject){
 
     User.findOne({facebook_id : user_id}).then(function(user){
@@ -123,7 +188,7 @@ UserSchema.statics.createOrFindUser = function(user_id){
       }
       else{
         console.log("User NOT found");
-        User.createFromFacebook(user_id).then(function(user){
+        User.createFromFacebook(user_id, shop).then(function(user){
           resolve(user);
         }).catch(function(err){
           reject(err);
@@ -142,11 +207,11 @@ UserSchema.statics.createOrFindUser = function(user_id){
 * Create a user from the Facebook infos
 */
 
-UserSchema.statics.createFromFacebook = function(user_id){
+UserSchema.statics.createFromFacebook = function(user_id, shop){
 
   return new Promise(function(resolve, reject){
 
-    getFacebookUserInfos(user_id).then(function(userJson){
+    getFacebookUserInfos(shop, user_id).then(function(userJson){
       console.log("JUST DL USER INFOS : " + userJson);
 
       let user = new User({facebook_id : user_id});
@@ -178,9 +243,10 @@ UserSchema.statics.createFromFacebook = function(user_id){
 * CONVERSATION SCHEMA
 */
 
-var ConversationSchema = mongoose.Schema({
-    page_id: {
-      type: String,
+const ConversationSchema = mongoose.Schema({
+    shop: {
+      type: Schema.Types.ObjectId,
+      ref: 'Shop',
       index: true
     },
     user: {
@@ -193,16 +259,19 @@ var ConversationSchema = mongoose.Schema({
       default: 0
     },
     last_message_date: Date
-});
+  },
+  {
+    timestamps: true
+  });
 
 /*
 * Find a conversation, or create if it does not exists.
 */
 
-ConversationSchema.statics.findOrCreate = function(user, page_id){
+ConversationSchema.statics.findOrCreate = function(user, shop){
 
   return new Promise(function(resolve, reject){
-    Conversation.findOne({ page_id: page_id, user: user._id}).then(function(conversation){
+    Conversation.findOne({ shop: shop._id, user: user._id}).then(function(conversation){
 
       if(conversation){
         console.log("Found a conversation");
@@ -210,7 +279,7 @@ ConversationSchema.statics.findOrCreate = function(user, page_id){
       }
       else{
         console.log("NOT found a conversation");
-        conversation = new Conversation({ page_id : page_id, user : user});
+        conversation = new Conversation({ shop : shop, user : user});
 
         conversation.save().then(function(conversation){
           resolve(conversation);
@@ -229,10 +298,12 @@ ConversationSchema.statics.findOrCreate = function(user, page_id){
 }
 
 
+let Shop = mongoose.model('Shop', ShopSchema);
 let User = mongoose.model('User', UserSchema);
 let Message = mongoose.model('Message', MessageSchema);
 let Conversation = mongoose.model('Conversation', ConversationSchema);
 
+exports.Shop = Shop;
 exports.Message = Message;
 exports.User = User;
 exports.Conversation = Conversation;

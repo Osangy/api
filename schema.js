@@ -2,7 +2,7 @@ import { schema as mongoSchema, resolvers as mongoResolvers } from './mongo/sche
 import { makeExecutableSchema } from 'graphql-tools';
 import { merge, reverse } from 'lodash';
 import { User, Message, Conversation } from './mongo/model';
-import { sendMessage } from './utils/facebookUtils';
+import * as facebook from './utils/facebookUtils';
 
 const rootSchema = [`
   # A list of options for the sort order of the feed
@@ -12,7 +12,7 @@ const rootSchema = [`
     message(limit: Int = 30, conversationId: String!) : [Message]
 
     # The list of conversations of a page_id
-    conversation(pageId:String!, limit: Int = 10): [Conversation]
+    conversation(limit: Int = 10): [Conversation]
 
     # The information about a user
     user(facebookId: String!): User
@@ -35,20 +35,21 @@ const rootSchema = [`
 const rootResolvers = {
   Query: {
     message(root, {limit, conversationId}, context) {
-      console.log("Facebook page id requesting : ", context.pageId);
+      console.log("Context ", context.user);
       const limitValidator = (limit > 30) ? 30 : limit;
 
       return Promise.resolve()
         .then(() => (
-           Message.find({conversation: conversationId}).sort({seq : -1}).limit(limit)
+           Message.find({conversation: conversationId}).sort({timestamp : -1}).limit(limit)
         ))
         .then((messages) => (
           reverse(messages)
         ));
     },
-    conversation(root, { pageId, limit }, context){
+    conversation(root, { limit }, context){
+      console.log(context.user);
       const limitValidator = (limit > 20) ? 10 : limit;
-      return Conversation.find({ page_id: pageId}).limit(limit);
+      return Conversation.find({ shop: context.user._id}).limit(limit);
     },
     user(root, { facebookId }, context){
       return User.findOne({ facebook_id: facebookId });
@@ -59,7 +60,7 @@ const rootResolvers = {
       console.log(`Just received text : ${text} / And facebook Id : ${facebookId}`);
       return Promise.resolve()
         .then(() => (
-           sendMessage(facebookId, text)
+           facebook.sendMessage(context.user, facebookId, text)
         ))
         .then((body) => (
           JSON.stringify(body)

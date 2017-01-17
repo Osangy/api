@@ -1,7 +1,10 @@
 import { User, Message, Conversation } from './model';
 import { property } from 'lodash';
+import GraphQLJSON from 'graphql-type-json';
 
 export const schema = [`
+
+  scalar JSON
 
   # A message sent to or by the page
   type Message {
@@ -18,9 +21,9 @@ export const schema = [`
     # The recipient (if the page sent the message, otherwise there is a sender if the message was sent by the client)
     recipient: User
     # A timestamp of when the message was sent
-    timestamp: Float! # Actually a date
+    timestamp: Float # Actually a date
     # The attachment of the message if there was one
-    attachments: [String]
+    attachments: [JSON]
   }
 
   # A user
@@ -46,9 +49,6 @@ export const schema = [`
   type Conversation {
     #The conversation id
     _id: ID!
-
-    # The id of the page that is concerned by this conversation
-    pageId: String!
 
     # The user that is concerned by this conversation
     user: User!
@@ -82,7 +82,6 @@ export const resolvers = {
     profilePic: property('profile_pic')
   },
   Conversation: {
-    pageId: property("page_id"),
     user({user}, _, context) {
       return User.findOne({_id : user});
     },
@@ -91,4 +90,5 @@ export const resolvers = {
       return Message.find({conversation : obj._id});
     }
   },
+  JSON: GraphQLJSON,
 };

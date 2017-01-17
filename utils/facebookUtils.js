@@ -1,7 +1,8 @@
-import { Message, User } from '../mongo/model';
+import { Message, User, Shop } from '../mongo/model';
 import request from 'request';
 import config from 'config';
 import Promise from 'bluebird';
+import {parseAccessTokenResponse} from './other';
 
 let prettyConfig = {
   keysColor: 'rainbow',
@@ -39,28 +40,37 @@ exports.manageEntry = function(entry){
       //TODO: Message read
     })
 
-
-    //Mark the messages as received
-    if(rightMessages.length > 0){
-      if(!rightMessages[0].message.is_echo){
-        sendAction(rightMessages[0].sender.id);
+    Shop.findOne({ pageId: pageID }, function(err, shop) {
+      if(err){
+        reject(err);
       }
-    }
 
-    Promise.each(rightMessages, function(messagingEvent){
-      return manageMessage(messagingEvent, pageID);
-    }).then(function(){
-      resolve();
-    }).catch(function(error){
-      reject(error);
-    })
+      //Mark the messages as received
+      if(rightMessages.length > 0){
+        if(!rightMessages[0].message.is_echo){
+          sendAction(shop, rightMessages[0].sender.id);
+        }
+      }
+
+      Promise.each(rightMessages, function(messagingEvent){
+        return manageMessage(messagingEvent, shop);
+      }).then(function(){
+        resolve();
+      }).catch(function(error){
+        reject(error);
+      })
+
+    });
+
+
+
   });
 
 
 
 }
 
-function manageMessage(messageObject, pageID){
+function manageMessage(messageObject, shop){
 
   return new Promise(function(resolve, reject){
 
@@ -79,15 +89,7 @@ function manageMessage(messageObject, pageID){
 
     }
 
-    Message.createFromFacebook(messageObject, pageID).then(function(message){
-      if(message.text == "cool"){
-        if(message.sender){
-          sendMessage(message.sender.facebook_id, "Je sais ;)").then(function(){
-            resolve(message);
-          })
-        }
-      }
-
+    Message.createFromFacebook(messageObject, shop).then(function(message){
       resolve(message);
     }).catch(function(err){
       reject(err);
@@ -103,7 +105,7 @@ function manageMessage(messageObject, pageID){
 */
 
 
-exports.getFacebookUserInfos = function(userId){
+exports.getFacebookUserInfos = function(shop, userId){
 
   let uri = `https://graph.facebook.com/v2.6/${userId}`;
 
@@ -113,7 +115,7 @@ exports.getFacebookUserInfos = function(userId){
       uri: uri,
       qs: {
         fields: 'first_name,last_name,profile_pic,locale,timezone,gender',
-        access_token: config.pageAccessToken
+        access_token: shop.pageToken
       },
       json: true,
       method: 'GET'
@@ -138,7 +140,7 @@ exports.getFacebookUserInfos = function(userId){
 * Send a message to a user
 */
 
-var sendMessage = exports.sendMessage = function(recipientId, text){
+var sendMessage = exports.sendMessage = function(shop, recipientId, text){
 
   const messageData = {
     recipient: {
@@ -152,7 +154,52 @@ var sendMessage = exports.sendMessage = function(recipientId, text){
   return new Promise(function(resolve, reject){
     request({
       uri: 'https://graph.facebook.com/v2.6/me/messages',
-      qs: { access_token: config.pageAccessToken },
+      qs: { access_token: shop.pageToken },
+      method: 'POST',
+      json: messageData
+
+    }, function (error, response, body) {
+      if (!error && response.statusCode == 200) {
+        var recipientId = body.recipient_id;
+        var messageId = body.message_id;
+
+        resolve(body);
+      } else {
+        if(error){
+          reject(error);
+        }
+        else{
+          console.error(body);
+          let error = new Error("Error when sending facebook message");
+          reject(error)
+        }
+
+      }
+    });
+  });
+
+
+}
+
+function sendImage(shop, recipientId, imageUrl){
+  const messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      attachment: {
+        type: "image",
+        payload: {
+          url: imageUrl
+        }
+      }
+    }
+  };
+
+  return new Promise(function(resolve, reject){
+    request({
+      uri: 'https://graph.facebook.com/v2.6/me/messages',
+      qs: { access_token: shop.pageToken },
       method: 'POST',
       json: messageData
 
@@ -174,12 +221,10 @@ var sendMessage = exports.sendMessage = function(recipientId, text){
       }
     });
   });
-
-
 }
 
 
-function sendAction(recipientId, action = "mark_seen"){
+function sendAction(shop, recipientId, action = "mark_seen"){
   const messageData = {
     recipient: {
       id: recipientId
@@ -187,10 +232,11 @@ function sendAction(recipientId, action = "mark_seen"){
     sender_action: action
   };
 
+
   return new Promise(function(resolve, reject){
     request({
       uri: 'https://graph.facebook.com/v2.6/me/messages',
-      qs: { access_token: config.pageAccessToken },
+      qs: { access_token: shop.pageToken },
       method: 'POST',
       json: messageData
 
@@ -211,4 +257,111 @@ function sendAction(recipientId, action = "mark_seen"){
   });
 }
 
+
+
+//========================================
+// Facebook Long Token
+//========================================
+function getLongToken(shortToken) {
+
+  return new Promise(function(resolve, reject){
+
+    let uri = `https://graph.facebook.com/oauth/access_token`;
+
+    //Request FB API
+    request({
+      uri: uri,
+      qs: {
+        grant_type: 'fb_exchange_token',
+        client_id: config.appId,
+        client_secret: config.appSecret,
+        fb_exchange_token: shortToken
+      },
+      json: true,
+      method: 'GET'
+    }, function(error, response, body){
+
+      if(!error && response.statusCode == 200){
+        resolve(parseAccessTokenResponse(response.body));
+      }
+      else{
+        reject(error);
+      }
+
+    });
+
+  });
+
+}
+
+
+//========================================
+// Facebook Get Pages of the user
+//========================================
+
+function getPages(userId, longToken){
+  return new Promise(function(resolve, reject){
+
+    let uri = `https://graph.facebook.com/v2.8/${userId}/accounts`;
+
+    //Request FB API
+    request({
+      uri: uri,
+      qs: {
+        access_token: longToken
+      },
+      json: true,
+      method: 'GET'
+    }, function(error, response, body){
+
+      if(!error && response.statusCode == 200){
+        resolve(body.data);
+      }
+      else{
+        reject(error);
+      }
+
+    });
+
+  });
+}
+
+
+//========================================
+// Facebook Get Pages of the user
+//========================================
+
+function subscribePageToApp(pageToken){
+  return new Promise(function(resolve, reject){
+
+    let uri = `https://graph.facebook.com/v2.8/me/subscribed_apps`;
+
+    //Request FB API
+    request({
+      uri: uri,
+      qs: {
+        access_token: pageToken
+      },
+      json: true,
+      method: 'POST'
+    }, function(error, response, body){
+
+      if(!error && response.statusCode == 200){
+        console.log("Subscribded to page :");
+        console.log(body);
+        resolve(body);
+      }
+      else{
+        reject(error);
+      }
+
+    });
+
+  });
+}
+
+exports.subscribePageToApp = subscribePageToApp;
+exports.getLongToken = getLongToken;
+exports.getPages = getPages;
 exports.sendAction = sendAction;
+exports.sendImage = sendImage;

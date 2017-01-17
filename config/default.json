@@ -1,8 +1,13 @@
 {
     "appSecret": "0fa03326d2e37eae653443d93101212b",
+    "appId": "561836697360186",
     "pageAccessToken": "EAAHZBZCMzElzoBAEd76dCNCdstpR62t2DIC3AV1ZBekUYEzq89axyGBjmwCPM12puMxrxVZCIWWfWcCEcIynn6G4SRn8bkuVnhYXzTK4cZCC4wifqtl1k1lnLXyetUYij8dKp8TCEGQ1iZAEy5H6DbGRbaFl0TOcgmdrli3wAlMAZDZD",
     "validationToken": "adrien_test",
     "serverURL": "",
     "mongo_url":"mongodb://localhost/test",
-    "page_id": "353319291690427"
+    "page_id": "353319291690427",
+    "jwtSecret": "MyS3cr3tK3Y",
+    "jwtSession": {
+        "session": false
+    }
 }

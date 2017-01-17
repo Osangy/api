@@ -13,12 +13,23 @@ import config from 'config';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import Promise from 'bluebird';
+import morgan from 'morgan';
+import passport from 'passport';
+import { FacebookStrategy } from 'passport-facebook';
+import * as AuthenticationController from './controllers/authentication';
 
-// const app = express().use('*', cors());
+const passportService = require('./utils/passport');
+
 const app = express();
 app.set('port', (process.env.PORT || 3001));
 app.use('*', cors());
-//app.use();
+app.use(morgan('combined'));
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
+// Middleware to require login/auth
+const requireAuth = passport.authenticate('jwt', { session: false });
+const requireLogin = passport.authenticate('local', { session: false });
 
 /*
 * MONGO DB Connection
@@ -33,10 +44,25 @@ db.on('error', console.error.bind(console, 'connection error:'));
 /*
 * Facebook API
 */
+const facebookRoutes = express.Router();
+facebookRoutes.use(bodyParser.json({ verify: verifyRequestSignature }));
+facebookRoutes.get('/webhook', routes.facebook.webhookValidation);
+facebookRoutes.get("/test", routes.facebook.sendTest);
+facebookRoutes.get("/test/image", routes.facebook.sendTestImage);
+facebookRoutes.post('/webhook', routes.facebook.webhookPost);
+app.use('/fb', facebookRoutes);
 
-app.get('/webhook', bodyParser.json({ verify: verifyRequestSignature }), routes.facebook.webhookValidation);
-app.get("/test", routes.facebook.sendTest);
-app.post('/webhook', bodyParser.json({ verify: verifyRequestSignature }), routes.facebook.webhookPost);
+/*
+* AUTH
+*/
+
+const authRoutes = express.Router();
+authRoutes.get('/getPages', routes.facebook.accessPagesList);
+authRoutes.post('/register', AuthenticationController.register);
+authRoutes.post('/login', requireLogin, AuthenticationController.login);
+app.use('/auth', authRoutes);
+
+
 
 /*
  * Verify that the callback came from Facebook. Using the App Secret from
@@ -72,19 +98,29 @@ function verifyRequestSignature(req, res, buf) {
 * GraphQL
 */
 
-app.use('/graphql', bodyParser.json(), graphqlExpress({
+const apiRoutes = express.Router();
+app.use('/api', apiRoutes);
+apiRoutes.use(requireAuth);
+apiRoutes.get('/test', function(req, res){
+  res.send("OKKKKK");
+})
+
+apiRoutes.use('/graphql', bodyParser.json(), graphqlExpress(request => ({
   schema: schema,
   context: {
-    pageId: config.page_id
-  },
- }));
-app.use('/graphiql', graphiqlExpress({
-  endpointURL: '/graphql',
+    pageId: config.page_id,
+    user: request.user
+  }
+})));
+apiRoutes.use('/graphiql', graphiqlExpress({
+  endpointURL: '/api/graphql'
 }));
 app.use('/schema', (req, res) => {
   res.set('Content-Type', 'text/plain');
   res.send(printSchema(schema));
 });
+
+
 
 
 
