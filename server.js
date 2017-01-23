@@ -17,11 +17,16 @@ import morgan from 'morgan';
 import passport from 'passport';
 import { FacebookStrategy } from 'passport-facebook';
 import * as AuthenticationController from './controllers/authentication';
+import multer from 'multer';
+var upload = multer({ dest: './uploads/' });
 
 const passportService = require('./utils/passport');
 
 const app = express();
 app.set('port', (process.env.PORT || 3001));
+app.set('view engine', 'pug');
+app.set('views', './views');
+app.use(express.static('files'));
 app.use('*', cors());
 app.use(morgan('combined'));
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -61,6 +66,17 @@ authRoutes.get('/getPages', routes.facebook.accessPagesList);
 authRoutes.post('/register', AuthenticationController.register);
 authRoutes.post('/login', requireLogin, AuthenticationController.login);
 app.use('/auth', authRoutes);
+
+
+/*
+* ADMIN INTERFACE
+*/
+
+const adminRoutes = express.Router();
+adminRoutes.get('/import', routes.admin.importInterface);
+adminRoutes.post('/uploadCatalog', upload.single('catalog'), routes.admin.uploadCatalog);
+app.use('/admin', adminRoutes);
+
 
 
 

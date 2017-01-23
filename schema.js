@@ -1,7 +1,7 @@
 import { schema as mongoSchema, resolvers as mongoResolvers } from './mongo/schema';
 import { makeExecutableSchema } from 'graphql-tools';
 import { merge, reverse } from 'lodash';
-import { User, Message, Conversation } from './mongo/model';
+import { User, Message, Conversation, Product } from './mongo/model';
 import * as facebook from './utils/facebookUtils';
 
 const rootSchema = [`
@@ -16,12 +16,18 @@ const rootSchema = [`
 
     # The information about a user
     user(facebookId: String!): User
+
+    # The products of a shop
+    products(limit: Int = 10): [Product]
   }
 
   type Mutation {
 
     # A page send a message to a user
     sendMessage(text: String!, facebookId: String!): String
+
+    # A page send a message to a user
+    sendImage(url: String!, facebookId: String!): String
 
   }
 
@@ -53,6 +59,11 @@ const rootResolvers = {
     },
     user(root, { facebookId }, context){
       return User.findOne({ facebook_id: facebookId });
+    },
+    products(root, { limit }, context){
+      console.log(context.user);
+      const limitValidator = (limit > 20) ? 20 : limit;
+      return Product.find({ shop: context.user._id}).limit(limit);
     }
   },
   Mutation : {
@@ -61,6 +72,15 @@ const rootResolvers = {
       return Promise.resolve()
         .then(() => (
            facebook.sendMessage(context.user, facebookId, text)
+        ))
+        .then((body) => (
+          JSON.stringify(body)
+        ));
+    },
+    sendImage(root, {url, facebookId}, context){
+      return Promise.resolve()
+        .then(() => (
+           facebook.sendImage(context.user, facebookId, url)
         ))
         .then((body) => (
           JSON.stringify(body)

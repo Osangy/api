@@ -1,0 +1,22 @@
+doctype html
+html(lang="en")
+  head
+    title Import Catalog
+    meta(name="viewport" content="width=device-width, initial-scale=1")
+    link(rel="stylesheet" type="text/css" href="./style.css")
+    script(src="../jquery-3.1.1.min.js")
+    link(rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous")
+    script(src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous")
+  body
+    div(class="container")
+      h1 Import a catalog
+      p Give the shop id
+      form(ref="uploadForm" action="/admin/uploadCatalog" method="post" encType="multipart/form-data")
+        div(class="form-group")
+          label(for="inputId") Shop Id
+          input(type="text" class="form-control" id="inputId" placeholder="Shop Id" name="shop_id")
+        div(class="form-group")
+          label(for="catalog") Choose the csv File
+          input(type="file" id="catalog" name="catalog")
+          p(class="hlep-block") Please choose a csv file with the products you want to import for this shop
+        button(type="submit" class="btn btn-default") Submit

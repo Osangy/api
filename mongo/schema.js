@@ -1,4 +1,4 @@
-import { User, Message, Conversation } from './model';
+import { User, Message, Conversation, Product } from './model';
 import { property } from 'lodash';
 import GraphQLJSON from 'graphql-type-json';
 
@@ -58,6 +58,31 @@ export const schema = [`
 
     # The messages that has been sent in this conversation
     messages: [Message]
+
+  }
+
+  # A product
+  type Product {
+    #The product id
+    _id: ID!
+
+    # The product id of the shop store
+    product_id: String!
+
+    # The name of the product
+    name: String
+
+    # The price of the product
+    price: Float
+
+    #The short description of the product
+    short_description: String
+
+    #The complete description of the product
+    description: String
+
+    #The urls of the photos of the product
+    photos_urls: [String]
 
   }
 `];

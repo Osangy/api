@@ -1,0 +1,23 @@
+doctype html
+html(lang="en")
+  head
+    title Import Catalog
+    meta(name="viewport" content="width=device-width, initial-scale=1")
+    link(rel="stylesheet" type="text/css" href="./style.css")
+    script(src="../jquery-3.1.1.min.js")
+    link(rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous")
+    script(src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous")
+  body
+    div(class="container")
+      h1 Result Import
+      p This is the products that we parsed
+      table(class="table table-striped")
+        thread
+          tr
+            each val, index in data[0]
+              th= index
+        tbody
+          each product in data
+            tr
+              each val, index in product
+                td= val

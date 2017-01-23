@@ -298,11 +298,85 @@ ConversationSchema.statics.findOrCreate = function(user, shop){
 }
 
 
+/*
+* PRODUCTS SCHEMA
+*/
+
+const ProductSchema = mongoose.Schema({
+    shop: {
+      type: Schema.Types.ObjectId,
+      ref: 'Shop',
+      index: true
+    },
+    product_id: String,
+    name : String,
+    price: Number,
+    short_description : String,
+    description : String,
+    photos_urls : [String]
+  },
+  {
+    timestamps: true
+});
+
+ProductSchema.statics.createProduct = function(data, shop){
+
+
+
+  return new Promise(function(resolve, reject){
+
+    if(!data.id){
+      reject(new Error("The product has no id"));
+    }
+
+    //We verify if the product does not already exist
+    Product.findOne({ product_id : data.id}).then(function(product){
+      if(product){
+        reject(new Error("The product has no id"));
+      }
+
+      if(!data.name) reject(new Error("The product has no name"));
+      if(!data.categories) reject(new Error("The product has no categories"));
+      if(!data.price) reject(new Error("The product has no price"));
+      if(!data.reference) reject(new Error("The product has no reference"));
+      if(!data.short_description) reject(new Error("The product has no short_description"));
+      if(!data.description) reject(new Error("The product has no description"));
+      if(!data.photos_urls) reject(new Error("The product has no photos_urls"));
+
+      let newProduct = new Product({
+        shop: shop,
+        product_id : data.id,
+        name: data.name,
+        price: data.price,
+        short_description: data.short_description,
+        description: data.description,
+        photos_urls: data.photos_urls.split(",")
+      });
+
+      return newProduct.save();
+    }).then(function(product){
+      resolve(product);
+    }).catch(function(error){
+      reject(error);
+    })
+
+  });
+
+
+}
+
+/*
+* Find a conversation, or create if it does not exists.
+*/
+
+
+let Product = mongoose.model('Product', ProductSchema);
 let Shop = mongoose.model('Shop', ShopSchema);
 let User = mongoose.model('User', UserSchema);
 let Message = mongoose.model('Message', MessageSchema);
 let Conversation = mongoose.model('Conversation', ConversationSchema);
 
+exports.Product = Product;
 exports.Shop = Shop;
 exports.Message = Message;
 exports.User = User;
