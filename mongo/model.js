@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Promise from 'bluebird';
 import { getFacebookUserInfos } from '../utils/facebookUtils';
 import moment from 'moment';
+import _ from 'lodash';
 
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 
@@ -365,17 +366,119 @@ ProductSchema.statics.createProduct = function(data, shop){
 
 }
 
+
+
 /*
-* Find a conversation, or create if it does not exists.
+* CART SCHEMA
 */
 
+const CartSchema = mongoose.Schema({
+    shop: {
+      type: Schema.Types.ObjectId,
+      ref: 'Shop',
+      index: true
+    },
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      index: true
+    },
+    products_selected : [{
+      product: {
+        type: Schema.Types.ObjectId,
+        ref: 'Product'
+      },
+      quantity: Number
+    }]
+  },
+  {
+    timestamps: true
+});
 
+CartSchema.statics.addProduct = function(productId, shop, userId){
+
+
+  return new Promise(function(resolve, reject){
+    let user;
+    let product;
+
+    User.findById(userId).then(function(userFound){
+      if(!userFound) reject(new Error("No user with this id"))
+
+      user = userFound;
+
+      return Product.findById(productId);
+    }).then(function(productFound){
+      if(!productFound) reject(new Error("No product with this id"))
+
+      product = productFound
+      return Cart.findOne({shop: shop, user: user});
+    }).then(function(cart){
+
+      //There is already a cart
+      if(cart){
+        console.log("Already a cart");
+
+        let foundOne = false;
+        _.forEach(cart.products_selected, function(value) {
+            if(product.equals(value.product)){
+              foundOne = true;
+              value.quantity++;
+              return false;
+            }
+        });
+
+        if(!foundOne){
+          cart.products_selected.push({
+            product: product,
+            quantity: 1
+          });
+        }
+
+
+        return cart.save();
+      }
+      //Toherwise we create one
+      else{
+        console.log("New cart");
+        let newCart = new Cart({
+          shop : shop,
+          user: user,
+          products_selected: []
+        });
+
+        newCart.products_selected.push({
+          product: product,
+          quantity: 1
+        });
+
+        return newCart.save();
+      }
+
+
+    }).then(function(cart){
+
+      resolve(cart);
+    }).catch(function(error){
+
+      reject(error);
+    });
+
+
+  });
+
+
+}
+
+
+let Cart = mongoose.model('Cart', CartSchema);
 let Product = mongoose.model('Product', ProductSchema);
 let Shop = mongoose.model('Shop', ShopSchema);
 let User = mongoose.model('User', UserSchema);
 let Message = mongoose.model('Message', MessageSchema);
 let Conversation = mongoose.model('Conversation', ConversationSchema);
 
+exports.Cart = Cart;
 exports.Product = Product;
 exports.Shop = Shop;
 exports.Message = Message;

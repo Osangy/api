@@ -1,7 +1,7 @@
 import { schema as mongoSchema, resolvers as mongoResolvers } from './mongo/schema';
 import { makeExecutableSchema } from 'graphql-tools';
 import { merge, reverse } from 'lodash';
-import { User, Message, Conversation, Product } from './mongo/model';
+import { User, Message, Conversation, Product, Cart } from './mongo/model';
 import * as facebook from './utils/facebookUtils';
 
 const rootSchema = [`
@@ -28,6 +28,9 @@ const rootSchema = [`
 
     # A page send a message to a user
     sendImage(url: String!, facebookId: String!): String
+
+    # Add a product to the cart
+    addCart(user_id: String!, product_id: String!): Cart
 
   }
 
@@ -84,6 +87,15 @@ const rootResolvers = {
         ))
         .then((body) => (
           JSON.stringify(body)
+        ));
+    },
+    addCart(root, {user_id, product_id}, context){
+      return Promise.resolve()
+        .then(() => (
+           Cart.addProduct(product_id, context.user, user_id)
+        ))
+        .then((cart) => (
+          cart
         ));
     }
   }

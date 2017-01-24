@@ -2,7 +2,7 @@ import config from 'config';
 import prettyjson from 'prettyjson';
 import csv from 'fast-csv';
 import fs from 'fs';
-import { Shop, Product } from '../mongo/model';
+import { Shop, Product, Cart } from '../mongo/model';
 
 
 /*

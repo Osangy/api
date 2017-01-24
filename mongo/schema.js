@@ -1,4 +1,4 @@
-import { User, Message, Conversation, Product } from './model';
+import { User, Message, Conversation, Product, Cart } from './model';
 import { property } from 'lodash';
 import GraphQLJSON from 'graphql-type-json';
 
@@ -28,6 +28,8 @@ export const schema = [`
 
   # A user
   type User {
+    #The user id
+    _id: ID!
     # The facebook id of the user
     facebookId: String
     # The first name of the user
@@ -85,6 +87,15 @@ export const schema = [`
     photos_urls: [String]
 
   }
+  # The cart of a user
+  type Cart {
+    # The user associated with the cart
+    user: User!
+
+    #The number of products in the cart
+    nbProducts: Float
+  }
+
 `];
 
 
@@ -113,6 +124,14 @@ export const resolvers = {
     nbMessages: property("nb_messages"),
     messages(obj, args, context){
       return Message.find({conversation : obj._id});
+    }
+  },
+  Cart: {
+    user({user}, _, context) {
+      return User.findOne({_id : user});
+    },
+    nbProducts(obj, args, context){
+      return obj.products_selected.length;
     }
   },
   JSON: GraphQLJSON,
