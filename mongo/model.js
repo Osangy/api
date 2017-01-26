@@ -383,13 +383,16 @@ const CartSchema = mongoose.Schema({
       ref: 'User',
       index: true
     },
-    products_selected : [{
+    selections : [{
       product: {
         type: Schema.Types.ObjectId,
         ref: 'Product'
       },
-      quantity: Number
-    }]
+      quantity: Number,
+      totalPriceProduct: Number
+    }],
+    totalPrice: Number,
+    nbProducts: Number
   },
   {
     timestamps: true
@@ -414,27 +417,31 @@ CartSchema.statics.addProduct = function(productId, shop, userId){
       product = productFound
       return Cart.findOne({shop: shop, user: user});
     }).then(function(cart){
-
+      console.log("START CART");
       //There is already a cart
       if(cart){
         console.log("Already a cart");
 
         let foundOne = false;
-        _.forEach(cart.products_selected, function(value) {
+        _.forEach(cart.selections, function(value) {
             if(product.equals(value.product)){
               foundOne = true;
               value.quantity++;
+              value.totalPriceProduct += product.price;
               return false;
             }
         });
 
         if(!foundOne){
-          cart.products_selected.push({
+          cart.selections.push({
             product: product,
-            quantity: 1
+            quantity: 1,
+            totalPriceProduct: product.price
           });
         }
 
+        cart.totalPrice += product.price;
+        cart.nbProducts++;
 
         return cart.save();
       }
@@ -444,13 +451,18 @@ CartSchema.statics.addProduct = function(productId, shop, userId){
         let newCart = new Cart({
           shop : shop,
           user: user,
-          products_selected: []
+          selections: [],
+          totalPrice: 0,
+          nbProducts: 0
         });
 
-        newCart.products_selected.push({
+        newCart.selections.push({
           product: product,
-          quantity: 1
+          quantity: 1,
+          totalPriceProduct: product.price
         });
+        newCart.totalPrice += product.price
+        newCart.nbProducts++;
 
         return newCart.save();
       }
@@ -469,6 +481,81 @@ CartSchema.statics.addProduct = function(productId, shop, userId){
 
 
 }
+
+
+CartSchema.statics.removeProduct = function(productId, shop, userId){
+
+
+  return new Promise(function(resolve, reject){
+    let user;
+    let product;
+
+    User.findById(userId).then(function(userFound){
+      if(!userFound) reject(new Error("No user with this id"))
+
+      user = userFound;
+
+      return Product.findById(productId);
+    }).then(function(productFound){
+      if(!productFound) reject(new Error("No product with this id"))
+
+      product = productFound
+      return Cart.findOne({shop: shop, user: user});
+    }).then(function(cart){
+      if(cart){
+        let foundOne = false;
+        _.forEach(cart.selections, function(value) {
+            console.log(value.product);
+            if(product.equals(value.product)){
+              foundOne = true;
+              value.quantity--;
+              value.totalPriceProduct -= product.price;
+              return false;
+            }
+        });
+
+        if(!foundOne){
+          reject(new Error("No products with this id in the user cart"))
+        }
+        else{
+          cart.totalPrice -= product.price;
+          cart.nbProducts--;
+
+          console.log("Cart before 0");
+          console.log(cart);
+
+          //Remove products with 0 quantity
+          var cleanSelected = _.remove(cart.selections, function(n) {
+            return n.quantity != 0;
+          });
+
+          cart.selections = cleanSelected;
+          console.log("Cart after 0");
+          console.log(cart);
+
+          return cart.save();
+        }
+      }
+      //Toherwise we create one
+      else{
+        reject(new Error("No cart for this user, so we are not able to remove any products from it"))
+      }
+
+
+    }).then(function(cart){
+
+      resolve(cart);
+    }).catch(function(error){
+
+      reject(error);
+    });
+
+
+  });
+
+
+}
+
 
 
 let Cart = mongoose.model('Cart', CartSchema);

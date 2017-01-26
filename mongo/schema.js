@@ -1,6 +1,7 @@
 import { User, Message, Conversation, Product, Cart } from './model';
 import { property } from 'lodash';
 import GraphQLJSON from 'graphql-type-json';
+import _ from 'lodash';
 
 export const schema = [`
 
@@ -29,7 +30,7 @@ export const schema = [`
   # A user
   type User {
     #The user id
-    _id: ID!
+    id: ID!
     # The facebook id of the user
     facebookId: String
     # The first name of the user
@@ -50,7 +51,7 @@ export const schema = [`
   # A Conversation between a page and a user
   type Conversation {
     #The conversation id
-    _id: ID!
+    id: ID!
 
     # The user that is concerned by this conversation
     user: User!
@@ -66,7 +67,7 @@ export const schema = [`
   # A product
   type Product {
     #The product id
-    _id: ID!
+    id: ID!
 
     # The product id of the shop store
     product_id: String!
@@ -89,11 +90,32 @@ export const schema = [`
   }
   # The cart of a user
   type Cart {
+    #The cart id
+    id: ID!
+
     # The user associated with the cart
     user: User!
 
     #The number of products in the cart
     nbProducts: Float
+
+    # The selection of products that the user added to his cart
+    selections: [Selection]
+
+    #The total price of the cart
+    totalPrice: Float!
+  }
+
+  # The product seelcted by a user in his cart and all the infos attached to it
+  type Selection {
+    # The product
+    product : Product!
+
+    #The quantity
+    quantity: Float!
+
+    #Total price
+    totalPriceProduct: Float!
   }
 
 `];
@@ -130,8 +152,13 @@ export const resolvers = {
     user({user}, _, context) {
       return User.findOne({_id : user});
     },
-    nbProducts(obj, args, context){
-      return obj.products_selected.length;
+    selections(obj, args, context){
+      return obj.selections;
+    }
+  },
+  Selection: {
+    product({product}, _, context) {
+      return Product.findById(product);
     }
   },
   JSON: GraphQLJSON,

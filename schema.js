@@ -19,6 +19,9 @@ const rootSchema = [`
 
     # The products of a shop
     products(limit: Int = 10): [Product]
+
+    # The cart of a user
+    cart(userId: ID!): Cart
   }
 
   type Mutation {
@@ -30,7 +33,10 @@ const rootSchema = [`
     sendImage(url: String!, facebookId: String!): String
 
     # Add a product to the cart
-    addCart(user_id: String!, product_id: String!): Cart
+    addCart(userId: String!, productId: String!): Cart
+
+    # Add a product to the cart
+    removeFromCart(userId: String!, productId: String!): Cart
 
   }
 
@@ -44,7 +50,6 @@ const rootSchema = [`
 const rootResolvers = {
   Query: {
     message(root, {limit, conversationId}, context) {
-      console.log("Context ", context.user);
       const limitValidator = (limit > 30) ? 30 : limit;
 
       return Promise.resolve()
@@ -56,7 +61,6 @@ const rootResolvers = {
         ));
     },
     conversation(root, { limit }, context){
-      console.log(context.user);
       const limitValidator = (limit > 20) ? 10 : limit;
       return Conversation.find({ shop: context.user._id}).limit(limit);
     },
@@ -64,9 +68,11 @@ const rootResolvers = {
       return User.findOne({ facebook_id: facebookId });
     },
     products(root, { limit }, context){
-      console.log(context.user);
       const limitValidator = (limit > 20) ? 20 : limit;
       return Product.find({ shop: context.user._id}).limit(limit);
+    },
+    cart(root, { userId }, context){
+      return Cart.findOne({user: userId});
     }
   },
   Mutation : {
@@ -89,15 +95,24 @@ const rootResolvers = {
           JSON.stringify(body)
         ));
     },
-    addCart(root, {user_id, product_id}, context){
+    addCart(root, {userId, productId}, context){
       return Promise.resolve()
         .then(() => (
-           Cart.addProduct(product_id, context.user, user_id)
+           Cart.addProduct(productId, context.user, userId)
         ))
         .then((cart) => (
           cart
         ));
-    }
+    },
+    removeFromCart(root, {userId, productId}, context){
+      return Promise.resolve()
+        .then(() => (
+           Cart.removeProduct(productId, context.user, userId)
+        ))
+        .then((cart) => (
+          cart
+        ));
+    },
   }
 };
 
