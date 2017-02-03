@@ -1,6 +1,6 @@
 import passport from 'passport';
 import { Strategy as JwtStrategy,  ExtractJwt } from "passport-jwt";
-import { Shop } from '../mongo/model';
+import { Shop } from '../mongo/models';
 import config from 'config';
 const LocalStrategy = require('passport-local');
 

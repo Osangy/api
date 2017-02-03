@@ -1,8 +1,9 @@
-import { Message, User, Shop } from '../mongo/model';
 import request from 'request';
 import config from 'config';
 import Promise from 'bluebird';
 import {parseAccessTokenResponse} from './other';
+import { Shop, Message } from '../mongo/models';
+
 
 let prettyConfig = {
   keysColor: 'rainbow',

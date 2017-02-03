@@ -1,11 +1,19 @@
 import { schema as mongoSchema, resolvers as mongoResolvers } from './mongo/schema';
 import { makeExecutableSchema } from 'graphql-tools';
 import { merge, reverse } from 'lodash';
-import { User, Message, Conversation, Product, Cart } from './mongo/model';
+import { User, Message, Conversation, Cart, Product } from './mongo/models';
 import * as facebook from './utils/facebookUtils';
 
 const rootSchema = [`
   # A list of options for the sort order of the feed
+
+  input SelectionInput {
+    # The product
+    product : ID!
+
+    #The quantity
+    quantity: Float!
+  }
 
   type Query {
     # A list of message
@@ -35,8 +43,8 @@ const rootSchema = [`
     # Add a product to the cart
     addCart(userId: String!, productId: String!): Cart
 
-    # Add a product to the cart
-    removeFromCart(userId: String!, productId: String!): Cart
+    # Update the cart
+    updateCart(userId: ID!, selections: [SelectionInput]!): Cart
 
   }
 
@@ -104,10 +112,10 @@ const rootResolvers = {
           cart
         ));
     },
-    removeFromCart(root, {userId, productId}, context){
+    updateCart(root, {userId, selections}, context){
       return Promise.resolve()
         .then(() => (
-           Cart.removeProduct(productId, context.user, userId)
+           Cart.updateCart(selections, context.user, userId)
         ))
         .then((cart) => (
           cart

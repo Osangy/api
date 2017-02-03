@@ -1,4 +1,5 @@
-import { User, Message, Conversation, Product, Cart } from './model';
+import mongoose from 'mongoose';
+import { User, Message, Shop, Product, Conversation, Cart } from './models';
 import { property } from 'lodash';
 import GraphQLJSON from 'graphql-type-json';
 import _ from 'lodash';
@@ -9,6 +10,7 @@ export const schema = [`
 
   # A message sent to or by the page
   type Message {
+    id : ID!
     # The facebook id of the message
     mid: String!
     # The seq number of the facebook conversation
@@ -115,7 +117,7 @@ export const schema = [`
     quantity: Float!
 
     #Total price
-    totalPriceProduct: Float!
+    totalPriceProduct: Float
   }
 
 `];
@@ -129,15 +131,6 @@ export const resolvers = {
     recipient({ recipient }, _, context) {
       return User.findOne({ _id : recipient});
     },
-    isEcho: property("is_echo")
-  },
-  User: {
-    facebookId(obj){
-      return obj.facebook_id
-    },
-    firstName: property('first_name'),
-    lastName: property('last_name'),
-    profilePic: property('profile_pic')
   },
   Conversation: {
     user({user}, _, context) {

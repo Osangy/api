@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { Shop } from '../mongo/model';
+import { Shop } from '../mongo/models';
 import config from 'config';
 import { subscribePageToApp } from '../utils/facebookUtils';
 
