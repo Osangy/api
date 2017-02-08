@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { Shop } from '../mongo/models';
 import config from 'config';
 import { subscribePageToApp } from '../utils/facebookUtils';
+import logging from '../lib/logging';
 
 
 function generateToken(shop) {
@@ -38,7 +39,7 @@ exports.login = function(req, res, next) {
 //========================================
 exports.register = function(req, res, next) {
   // Check for registration errors
-  console.log(req.body);
+  logging.info(req.body);
   const email = req.body.email;
   const shopName = req.body.shopName;
   const password = req.body.password;

@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { User, Message, Shop, Product, Conversation, Cart } from './models';
+import { User, Message, Shop, Product, Conversation, Cart, Variant } from './models';
 import { property } from 'lodash';
 import GraphQLJSON from 'graphql-type-json';
 import _ from 'lodash';
@@ -71,23 +71,23 @@ export const schema = [`
     #The product id
     id: ID!
 
-    # The product id of the shop store
-    product_id: String!
+    # The product reference
+    reference: String!
 
-    # The name of the product
-    name: String
-
-    # The price of the product
-    price: Float
+    # The title of the product
+    title: String
 
     #The short description of the product
-    short_description: String
+    shortDescription: String
 
     #The complete description of the product
-    description: String
+    longDescription: String
 
     #The urls of the photos of the product
-    photos_urls: [String]
+    categories: [String]
+
+    #The main image of the product
+    image: String!
 
   }
   # The cart of a user
@@ -120,6 +120,32 @@ export const schema = [`
     totalPriceProduct: Float
   }
 
+  #The Variants of a product
+  type Variant {
+    id: ID!
+
+    #The Product
+    product: Product!
+
+    #The Variant reference
+    reference : String!
+
+    #Images of the Variant
+    images: [String]
+
+    #Size of the variant
+    size: String
+
+    #Color of the variant
+    color: String
+
+    #Price of the variant
+    price: Float
+
+    #Stock available
+    stock: Float
+  }
+
 `];
 
 
@@ -150,6 +176,11 @@ export const resolvers = {
     }
   },
   Selection: {
+    product({product}, _, context) {
+      return Product.findById(product);
+    }
+  },
+  Variant: {
     product({product}, _, context) {
       return Product.findById(product);
     }

@@ -1,4 +1,8 @@
-console.log({starting:true});
+// Activate Google Cloud Trace and Debug when in production
+if (process.env.NODE_ENV === 'production') {
+  require('@google/cloud-trace').start();
+  require('@google/cloud-debug');
+}
 
 import express from "express";
 import graphqlHTTP from "express-graphql";
@@ -18,6 +22,7 @@ import passport from 'passport';
 import { FacebookStrategy } from 'passport-facebook';
 import * as AuthenticationController from './controllers/authentication';
 import multer from 'multer';
+import logging from './lib/logging';
 var upload = multer({ dest: './uploads/' });
 
 const passportService = require('./utils/passport');
@@ -32,6 +37,10 @@ app.use('*', cors());
 app.use(morgan('combined'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+
+// Add the request logger before anything else so that it can
+// accurately log requests.
+app.use(logging.requestLogger);
 
 // Middleware to require login/auth
 const requireAuth = passport.authenticate('jwt', { session: false });
@@ -94,7 +103,7 @@ function verifyRequestSignature(req, res, buf) {
   if (!signature) {
     // For testing, let's log an error. In production, you should throw an
     // error.
-    console.error("Couldn't validate the signature.");
+    logging.error("Couldn't validate the signature.");
   } else {
     var elements = signature.split('=');
     var method = elements[0];
@@ -138,13 +147,16 @@ app.use('/schema', (req, res) => {
 });
 
 
-
+// Add the error logger after all middleware and routes so that
+// it can log errors from the whole application. Any custom error
+// handlers should go after this.
+app.use(logging.errorLogger);
 
 
 db.once('open', function() {
-  console.log("Connected to the database");
+  logging.info("Connected to the database");
 
-  app.listen(app.get('port'),() => console.log(
+  app.listen(app.get('port'),() => logging.info(
     `Server running on port ${app.get('port')}`
   ));
 });

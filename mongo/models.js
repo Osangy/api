@@ -3,6 +3,7 @@ import Promise from 'bluebird';
 import { getFacebookUserInfos } from '../utils/facebookUtils';
 import moment from 'moment';
 import _ from 'lodash';
+import logging from '../lib/logging';
 
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 
@@ -41,11 +42,10 @@ let Schema = mongoose.Schema
       User.findOne({facebookId : user_id}).then(function(user){
 
         if(user){
-          console.log("User found");
           resolve(user);
         }
         else{
-          console.log("User NOT found");
+          logging.info("User NOT found");
           User.createFromFacebook(user_id, shop).then(function(user){
             resolve(user);
           }).catch(function(err){
@@ -70,12 +70,11 @@ let Schema = mongoose.Schema
     return new Promise(function(resolve, reject){
 
       getFacebookUserInfos(shop, user_id).then(function(userJson){
-        console.log("JUST DL USER INFOS : " + userJson);
 
         let user = new User({facebookId : user_id});
-        if(userJson.firstName) user.firstName = userJson.firstName;
-        if(userJson.lastName) user.lastName = userJson.lastName;
-        if(userJson.profilePic) user.profilePic = userJson.profilePic;
+        if(userJson.first_name) user.firstName = userJson.first_name;
+        if(userJson.last_name) user.lastName = userJson.last_name;
+        if(userJson.profile_pic) user.profilePic = userJson.profile_pic;
         if(userJson.locale) user.locale = userJson.locale;
         if(userJson.timezone) user.timezone = userJson.timezone;
         if(userJson.gender) user.gender = userJson.gender;
@@ -88,7 +87,8 @@ let Schema = mongoose.Schema
 
 
       }).catch(function(err){
-        console.error(err);
+        logging.error("Error downloading info about user")
+        logging.error(err);
         reject(err);
       });
     });
@@ -173,7 +173,11 @@ let Schema = mongoose.Schema
       },
       shortDescription : String,
       longDescription : String,
-      categories : [String]
+      categories : [String],
+      image: {
+        type: String,
+        required: true
+      }
     });
 
   ProductSchema.statics.createProduct = function(data, shop){
@@ -198,6 +202,7 @@ let Schema = mongoose.Schema
           shop: shop,
           reference : data.reference,
           title: data.title,
+          image: data.image
         });
 
         if(data.shortDescription) newProduct.shortDescription = data.shortDescription;
@@ -215,6 +220,66 @@ let Schema = mongoose.Schema
     });
 
 
+  }
+
+  /*
+  * VARIANTS SCHEMA
+  */
+
+  const VariantSchema = mongoose.Schema({
+      shop: {
+        type: Schema.Types.ObjectId,
+        ref: 'Shop',
+        index: true
+      },
+      product: {
+        type: Schema.Types.ObjectId,
+        ref: 'Product',
+        index: true
+      },
+      reference: {
+        type: String,
+        unique: true,
+        required: true
+      },
+      images: [String],
+      size: String,
+      color: String,
+      price: Number,
+      stock: Number
+  });
+
+  VariantSchema.statics.createVariant = (data, shop) => {
+
+    return new Promise(function(resolve, reject){
+
+
+      Product.findOne({reference : data.reference}).then((product) => {
+        if(!product){
+          reject(new Error("No productg found for this reference"));
+        }
+        else{
+
+          let newVariant = new Variant({
+            shop: shop,
+            product: product,
+            reference: data.variantReference,
+          });
+          if(data.images) newVariant.images = data.images.split(',');
+          if(data.size) newVariant.size = data.size;
+          if(data.color) newVariant.color = data.color;
+          if(data.price) newVariant.price = data.price;
+          if(data.stock) newVariant.stock = data.stock;
+
+          return newVariant.save();
+        }
+      }).then((variant) => {
+        resolve(variant);
+      }).catch((error) => {
+        reject(error);
+      });
+
+    });
   }
 
 
@@ -257,13 +322,12 @@ const MessageSchema = mongoose.Schema({
 MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
 
   //See if the emssage was sent by the page or the user
-  let user_id = (messageObject.message.isEcho) ? messageObject.recipient.id : messageObject.sender.id
+  let user_id = (messageObject.message.is_echo) ? messageObject.recipient.id : messageObject.sender.id
   let user;
 
 
   return new Promise(function(resolve, reject){
 
-    console.log(typeof(User));
     //See if user exists, or create one
     User.createOrFindUser(user_id, shop).then(function(userObject){
 
@@ -344,11 +408,10 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
       Conversation.findOne({ shop: shop._id, user: user._id}).then(function(conversation){
 
         if(conversation){
-          console.log("Found a conversation");
           resolve(conversation);
         }
         else{
-          console.log("NOT found a conversation");
+          logging.info("NOT found a conversation, need to create one");
           conversation = new Conversation({ shop : shop, user : user});
 
           conversation.save().then(function(conversation){
@@ -417,10 +480,9 @@ CartSchema.statics.addProduct = function(productId, shop, userId){
       product = productFound
       return Cart.findOne({shop: shop, user: user});
     }).then(function(cart){
-      console.log("START CART");
+
       //There is already a cart
       if(cart){
-        console.log("Already a cart");
 
         let foundOne = false;
         _.forEach(cart.selections, function(value) {
@@ -446,7 +508,7 @@ CartSchema.statics.addProduct = function(productId, shop, userId){
       }
       //Toherwise we create one
       else{
-        console.log("New cart");
+
         let newCart = new Cart({
           shop : shop,
           user: user,
@@ -497,10 +559,8 @@ CartSchema.statics.updateCart = function(selections, shop, userId){
       return Cart.findOne({shop: shop, user: user});
     }).then(function(cart){
       if(cart){
-        console.log("BEFORE CART");
 
         _.forEach(selections, (selection) => {
-          console.log(cart);
           cart.updateSelection(selection);
         })
 
@@ -527,8 +587,7 @@ CartSchema.statics.updateCart = function(selections, shop, userId){
 
 
 CartSchema.methods.updateSelection = function(selection){
-  console.log("CARRRT");
-  console.log(this);
+
   let productPrice = 0;
   const index = _.findIndex(this.selections, (o) => {
     return o.product.equals(selection.product)
@@ -561,6 +620,7 @@ CartSchema.methods.cleanSelections = function(){
 
 let Cart = mongoose.model('Cart', CartSchema);
 let Product = mongoose.model('Product', ProductSchema);
+let Variant = mongoose.model('Variant', VariantSchema);
 let Shop = mongoose.model('Shop', ShopSchema);
 let User = mongoose.model('User', UserSchema);
 let Message = mongoose.model('Message', MessageSchema);
@@ -568,6 +628,7 @@ let Conversation = mongoose.model('Conversation', ConversationSchema);
 
 exports.Cart = Cart;
 exports.Product = Product;
+exports.Variant = Variant;
 exports.Shop = Shop;
 exports.Message = Message;
 exports.User = User;

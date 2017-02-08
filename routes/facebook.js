@@ -1,6 +1,7 @@
 import config from 'config';
 import { manageEntry, sendMessage, sendAction, sendImage, getLongToken, getPages } from '../utils/facebookUtils';
 import prettyjson from 'prettyjson';
+import logging from '../lib/logging';
 
 let prettyConfig = {
   keysColor: 'rainbow',
@@ -32,7 +33,8 @@ exports.webhookValidation = function(req, res){
 exports.webhookPost = function(req, res){
   var data = req.body;
 
-  console.log(prettyjson.render(data, prettyConfig));
+  logging.info("New message from facebook");
+  logging.info(data);
 
   // Make sure this is a page subscription
   if (data.object == 'page') {
@@ -55,16 +57,12 @@ exports.webhookPost = function(req, res){
 
 
     promise.then(function(){
-      console.log("Finished work");
-
-
-
       res.sendStatus(200);
     }).catch(function(error){
-      console.log("Finished work with ERROR");
-      console.error("Error : "+ error.message);
+      logging.error("Finished work with ERROR");
+      logging.error("Error : "+ error.message);
       res.sendStatus(200);
-    })
+    });
   }
   else{
     res.sendStatus(200);
@@ -77,8 +75,6 @@ exports.webhookPost = function(req, res){
 //========================================
 exports.accessPagesList = function(req, res, next) {
 
-  console.log("Start getting pages for user ");
-  console.log(req.query.userId);
   const shortToken = req.query.shortToken;
 
   if (!shortToken) {
@@ -93,9 +89,6 @@ exports.accessPagesList = function(req, res, next) {
 
   //Exchange the short token to a long token
   getLongToken(shortToken).then(function(access_token){
-    console.log("New token long : ");
-    console.log(access_token);
-
 
     return getPages(userId, access_token);
   }).then(function(pagesList){

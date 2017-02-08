@@ -1,8 +1,9 @@
 import { schema as mongoSchema, resolvers as mongoResolvers } from './mongo/schema';
 import { makeExecutableSchema } from 'graphql-tools';
 import { merge, reverse } from 'lodash';
-import { User, Message, Conversation, Cart, Product } from './mongo/models';
+import { User, Message, Conversation, Cart, Product, Variant } from './mongo/models';
 import * as facebook from './utils/facebookUtils';
+import logging from './lib/logging';
 
 const rootSchema = [`
   # A list of options for the sort order of the feed
@@ -27,6 +28,9 @@ const rootSchema = [`
 
     # The products of a shop
     products(limit: Int = 10): [Product]
+
+    #The variants of a product
+    variants(product : ID!): [Variant]
 
     # The cart of a user
     cart(userId: ID!): Cart
@@ -79,13 +83,16 @@ const rootResolvers = {
       const limitValidator = (limit > 20) ? 20 : limit;
       return Product.find({ shop: context.user._id}).limit(limit);
     },
+    variants(root, { product }, context){
+      return Variant.find({ product: product}).limit(20);
+    },
     cart(root, { userId }, context){
       return Cart.findOne({user: userId});
     }
   },
   Mutation : {
     sendMessage(root, {text, facebookId}, context){
-      console.log(`Just received text : ${text} / And facebook Id : ${facebookId}`);
+      logging.info(`An agent send : ${text} / to facebook Id : ${facebookId}`);
       return Promise.resolve()
         .then(() => (
            facebook.sendMessage(context.user, facebookId, text)

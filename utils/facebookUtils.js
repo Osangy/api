@@ -3,13 +3,7 @@ import config from 'config';
 import Promise from 'bluebird';
 import {parseAccessTokenResponse} from './other';
 import { Shop, Message } from '../mongo/models';
-
-
-let prettyConfig = {
-  keysColor: 'rainbow',
-  dashColor: 'magenta',
-  stringColor: 'white'
-};
+import logging from '../lib/logging';
 
 
 var AttachmentTypes = {
@@ -80,13 +74,13 @@ function manageMessage(messageObject, shop){
 
     // Text in the message
     if (messageText){
-      console.log(`\nReceived a message with some text :\n\n${messageText}`);
+      logging.info(`\nReceived a message with some text :\n\n${messageText}`);
     }
 
     //Attechment in the message
     if(messageAttachements){
 
-      console.log(`\nReceived a message with an attachement of type ${messageAttachements[0].type}`);
+      logging.info(`\nReceived a message with an attachement of type ${messageAttachements[0].type}`);
 
     }
 
@@ -126,7 +120,7 @@ exports.getFacebookUserInfos = function(shop, userId){
         resolve(body);
       }
       else{
-        console.error("Request error : " + error);
+        logging.error("Request error : " + error);
         reject(error);
       }
 
@@ -170,7 +164,7 @@ var sendMessage = exports.sendMessage = function(shop, recipientId, text){
           reject(error);
         }
         else{
-          console.error(body);
+          logging.error(body);
           let error = new Error("Error when sending facebook message");
           reject(error)
         }
@@ -348,8 +342,8 @@ function subscribePageToApp(pageToken){
     }, function(error, response, body){
 
       if(!error && response.statusCode == 200){
-        console.log("Subscribded to page :");
-        console.log(body);
+        logging.info("Subscribded to page :");
+        logging.info(body);
         resolve(body);
       }
       else{

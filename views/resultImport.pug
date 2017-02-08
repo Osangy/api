@@ -10,14 +10,25 @@ html(lang="en")
   body
     div(class="container")
       h1 Result Import
-      p This is the products that we parsed
+      p These are products that we parsed
       table(class="table table-striped")
         thread
           tr
-            each val, index in data[0]
+            each val, index in products[0]
               th= index
         tbody
-          each product in data
+          each product in products
             tr
               each val, index in product
+                td= val
+      p These are the variants of the produtcs that we imported
+      table(class="table table-striped")
+        thread
+          tr
+            each val, index in variants[0]
+              th= index
+        tbody
+          each variant in variants
+            tr
+              each val, index in variant
                 td= val
