@@ -1,10 +1,12 @@
-import request from 'request';
 import config from 'config';
 import Promise from 'bluebird';
 import {parseAccessTokenResponse} from './other';
 import { Shop, Message } from '../mongo/models';
 import logging from '../lib/logging';
+import request from 'request';
+import rp from 'request-promise';
 
+Promise.promisifyAll(require("mongoose"));
 
 var AttachmentTypes = {
   IMAGE: "image",
@@ -74,21 +76,28 @@ function manageMessage(messageObject, shop){
 
     // Text in the message
     if (messageText){
-      logging.info(`\nReceived a message with some text :\n\n${messageText}`);
+      logging.info(`Received a message with some text : ${messageText}`);
     }
-
-    //Attechment in the message
+    //Attachment in the message
     if(messageAttachements){
-
-      logging.info(`\nReceived a message with an attachement of type ${messageAttachements[0].type}`);
-
+      logging.info(`Received a message with an attachement of type ${messageAttachements[0].type}`);
     }
 
-    Message.createFromFacebook(messageObject, shop).then(function(message){
-      resolve(message);
-    }).catch(function(err){
-      reject(err);
-    })
+
+    if(messageObject.message.is_echo){
+      Message.createFromFacebookEcho(messageObject, shop).then(function(message){
+        resolve(message);
+      }).catch(function(err){
+        reject(err);
+      })
+    }
+    else{
+      Message.createFromFacebook(messageObject, shop).then(function(message){
+        resolve(message);
+      }).catch(function(err){
+        reject(err);
+      })
+    }
 
   });
 
@@ -135,7 +144,8 @@ exports.getFacebookUserInfos = function(shop, userId){
 * Send a message to a user
 */
 
-var sendMessage = exports.sendMessage = function(shop, recipientId, text){
+function sendMessage(shop, recipientId, text){
+
 
   const messageData = {
     recipient: {
@@ -147,36 +157,41 @@ var sendMessage = exports.sendMessage = function(shop, recipientId, text){
   };
 
   return new Promise(function(resolve, reject){
-    request({
-      uri: 'https://graph.facebook.com/v2.6/me/messages',
-      qs: { access_token: shop.pageToken },
-      method: 'POST',
-      json: messageData
 
-    }, function (error, response, body) {
-      if (!error && response.statusCode == 200) {
-        var recipientId = body.recipient_id;
-        var messageId = body.message_id;
+    let newMessage;
 
-        resolve(body);
-      } else {
-        if(error){
-          reject(error);
-        }
-        else{
-          logging.error(body);
-          let error = new Error("Error when sending facebook message");
-          reject(error)
-        }
+    //Start by creating the message in our database
+    Message.createFromShopToFacebook('text', text, recipientId, shop).then((messageObject) => {
+      newMessage = messageObject;
 
+      var options = {
+        uri: 'https://graph.facebook.com/v2.6/me/messages',
+        qs: { access_token: shop.pageToken },
+        method: 'POST',
+        json: messageData
       }
+
+      //Then send it to Facebook
+      return rp(options);
+
+    }).then((parsedBody) => {
+
+      newMessage.mid = parsedBody.message_id;
+      return newMessage.save();
+
+    }).then((message) => {
+      resolve(message);
+    }).catch((err) => {
+      reject(err);
     });
+
   });
 
 
 }
 
 function sendImage(shop, recipientId, imageUrl){
+
   const messageData = {
     recipient: {
       id: recipientId
@@ -192,29 +207,34 @@ function sendImage(shop, recipientId, imageUrl){
   };
 
   return new Promise(function(resolve, reject){
-    request({
-      uri: 'https://graph.facebook.com/v2.6/me/messages',
-      qs: { access_token: shop.pageToken },
-      method: 'POST',
-      json: messageData
 
-    }, function (error, response, body) {
-      if (!error && response.statusCode == 200) {
-        var recipientId = body.recipient_id;
-        var messageId = body.message_id;
+    let newMessage;
 
-        resolve(body);
-      } else {
-        if(err){
-          reject(err);
-        }
-        else{
-          let error = new Error("Error when sending facebook message");
-          reject(error)
-        }
+    //Start by creating the message in our database
+    Message.createFromShopToFacebook('image', imageUrl, recipientId, shop).then((messageObject) => {
+      newMessage = messageObject;
 
+      var options = {
+        uri: 'https://graph.facebook.com/v2.6/me/messages',
+        qs: { access_token: shop.pageToken },
+        method: 'POST',
+        json: messageData
       }
+
+      //Then send it to Facebook
+      return rp(options);
+
+    }).then((parsedBody) => {
+
+      newMessage.mid = parsedBody.message_id;
+      return newMessage.save();
+
+    }).then((message) => {
+      resolve(message);
+    }).catch((err) => {
+      reject(err);
     });
+
   });
 }
 
@@ -261,10 +281,8 @@ function getLongToken(shortToken) {
 
   return new Promise(function(resolve, reject){
 
-    let uri = `https://graph.facebook.com/oauth/access_token`;
-
-    //Request FB API
-    request({
+    const uri = `https://graph.facebook.com/oauth/access_token`;
+    const options = {
       uri: uri,
       qs: {
         grant_type: 'fb_exchange_token',
@@ -274,16 +292,13 @@ function getLongToken(shortToken) {
       },
       json: true,
       method: 'GET'
-    }, function(error, response, body){
+    }
 
-      if(!error && response.statusCode == 200){
-        resolve(parseAccessTokenResponse(response.body));
-      }
-      else{
-        reject(error);
-      }
-
-    });
+    rp(options).then((parsedBody) => {
+      resolve(parseAccessTokenResponse(parsedBody));
+    }).catch((error) => {
+      reject(error);
+    })
 
   });
 
@@ -297,26 +312,22 @@ function getLongToken(shortToken) {
 function getPages(userId, longToken){
   return new Promise(function(resolve, reject){
 
-    let uri = `https://graph.facebook.com/v2.8/${userId}/accounts`;
+    const uri = `https://graph.facebook.com/v2.8/${userId}/accounts`;
 
-    //Request FB API
-    request({
+    const options = {
       uri: uri,
       qs: {
         access_token: longToken
       },
       json: true,
       method: 'GET'
-    }, function(error, response, body){
+    }
 
-      if(!error && response.statusCode == 200){
-        resolve(body.data);
-      }
-      else{
-        reject(error);
-      }
-
-    });
+    rp(options).then((parsedBody) => {
+      resolve(parsedBody.data);
+    }).catch((error) => {
+      reject(error);
+    })
 
   });
 }
@@ -327,34 +338,29 @@ function getPages(userId, longToken){
 //========================================
 
 function subscribePageToApp(pageToken){
-  return new Promise(function(resolve, reject){
+  return new Promise((resolve, reject) => {
 
-    let uri = `https://graph.facebook.com/v2.8/me/subscribed_apps`;
-
-    //Request FB API
-    request({
+    const uri = `https://graph.facebook.com/v2.8/me/subscribed_apps`;
+    const options = {
       uri: uri,
       qs: {
         access_token: pageToken
       },
       json: true,
       method: 'POST'
-    }, function(error, response, body){
+    }
 
-      if(!error && response.statusCode == 200){
-        logging.info("Subscribded to page :");
-        logging.info(body);
-        resolve(body);
-      }
-      else{
-        reject(error);
-      }
-
-    });
-
+    rp(options).then((parsedBody) => {
+      logging.info("Subscribded to page :");
+      logging.info(parsedBody);
+      resolve(parsedBody);
+    }).catch((error) => {
+      reject(error);
+    })
   });
 }
 
+exports.sendMessage = sendMessage;
 exports.subscribePageToApp = subscribePageToApp;
 exports.getLongToken = getLongToken;
 exports.getPages = getPages;

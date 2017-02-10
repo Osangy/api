@@ -38,10 +38,6 @@ app.use(morgan('combined'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-// Add the request logger before anything else so that it can
-// accurately log requests.
-app.use(logging.requestLogger);
-
 // Middleware to require login/auth
 const requireAuth = passport.authenticate('jwt', { session: false });
 const requireLogin = passport.authenticate('local', { session: false });
@@ -54,6 +50,18 @@ mongoose.connect(config.mongo_url);
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 
+
+/*
+* HEALTH CHECK FROM GOOGLE
+*/
+
+app.get('/_ah/health', (req, res) => {
+  res.status(200).send('ok');
+});
+
+// Add the request logger before anything else so that it can
+// accurately log requests.
+app.use(logging.requestLogger);
 
 
 /*

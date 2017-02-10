@@ -3,30 +3,54 @@ import { User, Message, Shop, Product, Conversation, Cart, Variant } from './mod
 import { property } from 'lodash';
 import GraphQLJSON from 'graphql-type-json';
 import _ from 'lodash';
+import Promise from 'bluebird';
+
+Promise.promisifyAll(require("mongoose"));
 
 export const schema = [`
 
   scalar JSON
 
+  enum ContentType {
+    text
+    image
+    audio
+    video
+    file
+    location
+  }
+
   # A message sent to or by the page
   type Message {
     id : ID!
+
     # The facebook id of the message
-    mid: String!
-    # The seq number of the facebook conversation
-    seq: Int!
+    mid: String
+
     # Has been sent by the page or not
     isEcho: Boolean
+
     # The text of the message
     text: String
+
+    # The type of the message
+    type: ContentType
+
     # The sender (if the client sent the message, otherwise there is a recipient if the message was sent by the page)
     sender: User
+
     # The recipient (if the page sent the message, otherwise there is a sender if the message was sent by the client)
     recipient: User
+
     # A timestamp of when the message was sent
     timestamp: Float # Actually a date
-    # The attachment of the message if there was one
-    attachments: [JSON]
+
+    #The url of the content of the message
+    fileUrl: String
+
+    #The coordinates if the type of the message is location
+    coordinates : JSON
+
   }
 
   # A user

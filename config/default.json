@@ -9,5 +9,10 @@
     "jwtSecret": "MyS3cr3tK3Y",
     "jwtSession": {
         "session": false
-    }
+    },
+    "SUBSCRIPTION_NAME": "shared-worker-subscription",
+    "TOPIC_NAME": "message-process-queue",
+    "GCLOUD_PROJECT" : "cproject-158114",
+    "CLOUD_BUCKET" : "cproject-158114"
+
 }

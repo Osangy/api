@@ -91,31 +91,22 @@ exports.register = function(req, res, next) {
       //Save the shop
       shop.save().then(function(savedShop){
 
+        logging.info(shop.pageToken);
         //Once saved, we subscribe the app to the page
         return subscribePageToApp(shop.pageToken);
       }).then(function(){
 
         let shopInfos = setShopInfo(shop);
+        logging.info("Passed subscribe to page");
 
         res.status(201).json({
           token: 'JWT ' + generateToken(shopInfos),
           shop: shopInfos
         });
 
-      }).catch(function(error){
-        return next(err);
-      });
-
-      shop.save(function(err, shop) {
-        if (err) { return next(err); }
-
-
-        let shopInfos = setShopInfo(shop);
-
-        res.status(201).json({
-          token: 'JWT ' + generateToken(shopInfos),
-          shop: shopInfos
-        });
+      }).catch((error) => {
+        logging.error(error.message);
+        return next(error);
       });
   });
 }

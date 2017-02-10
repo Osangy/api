@@ -2,13 +2,8 @@ import config from 'config';
 import { manageEntry, sendMessage, sendAction, sendImage, getLongToken, getPages } from '../utils/facebookUtils';
 import prettyjson from 'prettyjson';
 import logging from '../lib/logging';
-
-let prettyConfig = {
-  keysColor: 'rainbow',
-  dashColor: 'magenta',
-  stringColor: 'white'
-};
-
+import Promise from 'bluebird';
+import background from '../lib/background';
 
 /*
 * Webhook Validation
@@ -39,30 +34,12 @@ exports.webhookPost = function(req, res){
   // Make sure this is a page subscription
   if (data.object == 'page') {
 
-    let promise = Promise.resolve(null);
-
-
-
-    // Iterate over each entry
-    // There may be multiple if batched
-    data.entry.forEach(function(pageEntry) {
-
-      //console.log(prettyjson.render(pageEntry, prettyConfig));
-
-      promise = promise.then(function(){
-        return manageEntry(pageEntry);
-      });
-
+    //Queue all the entry to be processed by a worker
+    data.entry.forEach((pageEntry) => {
+      background.queueEntry(pageEntry);
     });
 
-
-    promise.then(function(){
-      res.sendStatus(200);
-    }).catch(function(error){
-      logging.error("Finished work with ERROR");
-      logging.error("Error : "+ error.message);
-      res.sendStatus(200);
-    });
+    res.sendStatus(200);
   }
   else{
     res.sendStatus(200);
@@ -88,14 +65,14 @@ exports.accessPagesList = function(req, res, next) {
   }
 
   //Exchange the short token to a long token
-  getLongToken(shortToken).then(function(access_token){
+  getLongToken(shortToken).then((access_token) => {
 
     return getPages(userId, access_token);
-  }).then(function(pagesList){
+  }).then( (pagesList) => {
     res.status(200).json(pagesList);
 
-  }).catch(function(error){
-    console.error(error);
+  }).catch((error) => {
+    logging.error(error);
     res.status(500).send(error.message);
   });
 

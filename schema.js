@@ -4,6 +4,9 @@ import { merge, reverse } from 'lodash';
 import { User, Message, Conversation, Cart, Product, Variant } from './mongo/models';
 import * as facebook from './utils/facebookUtils';
 import logging from './lib/logging';
+import Promise from 'bluebird';
+
+Promise.promisifyAll(require("mongoose"));
 
 const rootSchema = [`
   # A list of options for the sort order of the feed
@@ -39,10 +42,10 @@ const rootSchema = [`
   type Mutation {
 
     # A page send a message to a user
-    sendMessage(text: String!, facebookId: String!): String
+    sendMessage(text: String!, facebookId: String!): Message
 
     # A page send a message to a user
-    sendImage(url: String!, facebookId: String!): String
+    sendImage(url: String!, facebookId: String!): Message
 
     # Add a product to the cart
     addCart(userId: String!, productId: String!): Cart
@@ -97,8 +100,8 @@ const rootResolvers = {
         .then(() => (
            facebook.sendMessage(context.user, facebookId, text)
         ))
-        .then((body) => (
-          JSON.stringify(body)
+        .then((message) => (
+          message
         ));
     },
     sendImage(root, {url, facebookId}, context){
@@ -106,8 +109,8 @@ const rootResolvers = {
         .then(() => (
            facebook.sendImage(context.user, facebookId, url)
         ))
-        .then((body) => (
-          JSON.stringify(body)
+        .then((message) => (
+          message
         ));
     },
     addCart(root, {userId, productId}, context){

@@ -4,9 +4,10 @@ import { getFacebookUserInfos } from '../utils/facebookUtils';
 import moment from 'moment';
 import _ from 'lodash';
 import logging from '../lib/logging';
+import background from '../lib/background';
 
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
-
+Promise.promisifyAll(require("mongoose"));
 
 
 let Schema = mongoose.Schema
@@ -289,10 +290,16 @@ let Schema = mongoose.Schema
   */
 
 const MessageSchema = mongoose.Schema({
-    mid: String,
-    seq: Number,
+    mid: {
+      type: String,
+      unique: true
+    },
     text: String,
     isEcho: Boolean,
+    type: {
+        type: String,
+        enum: ['text', 'image', 'video', 'audio', 'file', 'location']
+    },
     sender: {
       type: Schema.Types.ObjectId,
       ref: 'User'
@@ -302,8 +309,11 @@ const MessageSchema = mongoose.Schema({
       ref: 'User'
     },
     timestamp: Date,
-    attachments: [],
-    quick_reply: Schema.Types.Mixed,
+    fileUrl: String,
+    coordinates:{
+      lat: Number,
+      long: Number
+    },
     conversation: {
       type: Schema.Types.ObjectId,
       ref: 'Conversation',
@@ -339,34 +349,125 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
 
 
       //Create the message
-      let message = new Message({ mid: messageObject.message.mid});
-      if(messageObject.message.isEcho){
+      let message = new Message({
+        isEcho : (messageObject.message.is_echo) ? true : false,
+        conversation : conversationObject,
+        timestamp : moment(messageObject.timestamp),
+        mid: messageObject.message.mid
+      });
+
+      //Set the right user kind
+      if(messageObject.message.is_echo){
         message.recipient = user;
       }
       else{
         message.sender = user;
       }
 
-
-
-      if(messageObject.message.text) message.text = messageObject.message.text;
-      if(messageObject.timestamp) message.timestamp = moment(messageObject.timestamp);
-      if(messageObject.message.seq) message.seq = messageObject.message.seq;
-      if(messageObject.message.attachments) message.attachments = messageObject.message.attachments;
-      message.conversation = conversationObject;
-      message.isEcho = (messageObject.message.isEcho) ? true : false;
+      if(messageObject.message.text){
+        message.type = 'text';
+        message.text = messageObject.message.text;
+      }
+      else if(messageObject.message.attachments){
+        //TODO: Manage Multiple Attachments
+        switch (messageObject.message.attachments[0].type) {
+          case 'audio':
+          case "image":
+          case "video":
+          case "file":
+            message.type = messageObject.message.attachments[0].type;
+            message.fileUrl = messageObject.message.attachments[0].payload.url;
+            background.queueFile(message.fileUrl, message.mid);
+            break;
+          case "location":
+            message.type = messageObject.message.attachments[0].type;
+            message.coordinates.lat = messageObject.message.attachments[0].payload.coordinates.lat
+            message.coordinates.long = messageObject.message.attachments[0].payload.coordinates.long
+          default:
+        }
+      }
 
       //TODO : increment message counter and date in conversation
       return message.save();
     }).then(function(message){
+      resolve(message);
+    }).catch(function(err){
+      reject(err);
+    });
+
+  });
+
+}
+
+
+MessageSchema.statics.createFromShopToFacebook = (type, content, userFacebookId, shop) => {
+  return new Promise(function(resolve, reject){
+
+    let user;
+    //See if user exists, or create one
+    User.findOne({facebookId : userFacebookId}).then(function(userObject){
+
+      if(!userObject) reject(new Error("No user found"))
+
+      user = userObject;
+
+      //See if conversation exists, or create one
+      return Conversation.findOne({shop : shop, user : user});
+    }).then(function(conversationObject){
+
+      if(!conversationObject) reject(new Error("The conversation was not found"));
+
+
+      //Create the message
+      let message = new Message({
+        isEcho : true,
+        conversation : conversationObject,
+        recipient: user,
+        type: type,
+        timestamp: moment()
+      });
+
+      switch (type) {
+        case 'text':
+          message.text = content;
+          break;
+        case 'image':
+          message.fileUrl = content
+        default:
+
+      }
 
       resolve(message);
-
     }).catch(function(err){
-
       reject(err);
-
     });
+
+  });
+}
+
+
+MessageSchema.statics.createFromFacebookEcho = (messageObject, shop) => {
+
+  return new Promise((resolve, reject) => {
+
+    //Find a message with this mid
+    Message.findOne({ mid: messageObject.message.mid }).then((message) => {
+
+      //Update message if we already have it in the database
+      if(message){
+        message.timestamp = moment(messageObject.timestamp);
+        return message.save();
+      }
+      //Otherwise we create it as a new one
+      else{
+        return Message.createFromFacebook(messageObject, shop);
+      }
+
+    }).then((message) => {
+      resolve(message);
+    }).catch((err) => {
+      reject(err);
+    })
 
   });
 
