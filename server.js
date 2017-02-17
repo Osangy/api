@@ -72,6 +72,7 @@ facebookRoutes.use(bodyParser.json({ verify: verifyRequestSignature }));
 facebookRoutes.get('/webhook', routes.facebook.webhookValidation);
 facebookRoutes.get("/test", routes.facebook.sendTest);
 facebookRoutes.get("/test/image", routes.facebook.sendTestImage);
+facebookRoutes.get("/resub/:pageId", routes.facebook.reSub);
 facebookRoutes.post('/webhook', routes.facebook.webhookPost);
 app.use('/fb', facebookRoutes);
 
@@ -95,6 +96,18 @@ adminRoutes.get('/import', routes.admin.importInterface);
 adminRoutes.post('/uploadCatalog', upload.single('catalog'), routes.admin.uploadCatalog);
 app.use('/admin', adminRoutes);
 
+
+//TODO: STRIPE WEBHOOKS when user desauthorize
+
+
+/*
+* SHOP INTERFACE
+*/
+
+const shopRoutes = express.Router();
+shopRoutes.get('/pay/:cartId', routes.shop.paySimple);
+shopRoutes.post('/validatePayment', routes.shop.validatePayment);
+app.use('/shop', shopRoutes);
 
 
 

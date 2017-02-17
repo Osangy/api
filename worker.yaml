@@ -29,4 +29,8 @@ health_check:
 # Temporary setting to keep gcloud from uploading node_modules
 skip_files:
  - ^node_modules$
+ 
+manual_scaling:
+  instances: 1
+
 # [END yaml]

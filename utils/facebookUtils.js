@@ -139,6 +139,10 @@ exports.getFacebookUserInfos = function(shop, userId){
 }
 
 
+/////////////////////////////////////////////
+///////////// SEND //////////////////////////
+/////////////////////////////////////////////
+
 
 /*
 * Send a message to a user
@@ -239,6 +243,57 @@ function sendImage(shop, recipientId, imageUrl){
 }
 
 
+/*
+* A button to open a webview
+*/
+
+function sendButtonForPayCart(shop, recipientId, cart){
+
+  const messageData = {
+    recipient: {
+      id: recipientId
+    },
+    message: {
+      attachment: {
+        type: "template",
+        payload: {
+          template_type: "button",
+          text: `Vous pouvez dès à présent finir votre achat en completant le paiement de votre panier d'un montant de ${cart.totalPrice}€ en cliquant ci dessous.`,
+          buttons: [
+            {
+              type: "web_url",
+              url: `https://cproject-api.ngrok.io/shop/pay/${cart._id}`,
+              title: "Régler mon panier",
+              messenger_extensions : true,
+              fallback_url : `https://cproject-api.ngrok.io/shop/pay/${cart._id}`
+            }
+          ]
+        }
+      }
+    }
+  };
+
+  return new Promise(function(resolve, reject){
+
+    var options = {
+      uri: 'https://graph.facebook.com/v2.6/me/messages',
+      qs: { access_token: shop.pageToken },
+      method: 'POST',
+      json: messageData
+    }
+
+    rp(options).then((parsedBody) => {
+      logging.info("Send button for cart "+cart._id);
+      logging.info(parsedBody);
+      resolve(parsedBody);
+    }).catch((err) => {
+      reject(err);
+    })
+
+  });
+}
+
+
 function sendAction(shop, recipientId, action = "mark_seen"){
   const messageData = {
     recipient: {
@@ -272,6 +327,10 @@ function sendAction(shop, recipientId, action = "mark_seen"){
   });
 }
 
+
+/////////////////////////////////////////////
+///////////// END SEND //////////////////////
+/////////////////////////////////////////////
 
 
 //========================================
@@ -360,6 +419,7 @@ function subscribePageToApp(pageToken){
   });
 }
 
+exports.sendButtonForPayCart = sendButtonForPayCart;
 exports.sendMessage = sendMessage;
 exports.subscribePageToApp = subscribePageToApp;
 exports.getLongToken = getLongToken;

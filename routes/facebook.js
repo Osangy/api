@@ -1,9 +1,10 @@
 import config from 'config';
-import { manageEntry, sendMessage, sendAction, sendImage, getLongToken, getPages } from '../utils/facebookUtils';
+import { manageEntry, sendMessage, sendAction, sendImage, getLongToken, getPages, subscribePageToApp } from '../utils/facebookUtils';
 import prettyjson from 'prettyjson';
 import logging from '../lib/logging';
 import Promise from 'bluebird';
 import background from '../lib/background';
+import { Shop } from '../mongo/models';
 
 /*
 * Webhook Validation
@@ -99,5 +100,30 @@ exports.sendTestImage = function(req, res){
     res.status(500).send(err.message);
   })
 
+
+}
+
+/*
+* Resubscribe to a page
+*/
+
+exports.reSub = function(req, res){
+
+
+  Shop.findOne({ pageId : req.params.pageId}).then((shop) => {
+    if(!shop){
+      res.status(500).send("No Shop with this page id");
+    }
+    else{
+      subscribePageToApp(shop.pageToken).then((success) => {
+        res.status(200).send(success);
+
+      }).catch((err) => {
+        res.status(500).send(err.message);
+      })
+    }
+  }).catch((err) => {
+    res.status(500).send(err.message);
+  })
 
 }

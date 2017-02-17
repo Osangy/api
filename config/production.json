@@ -2,5 +2,7 @@
   "mongo_url":"mongodb://adrien:adrien@ds145389.mlab.com:45389/cprojectprod",
   "appSecret": "805604128ca8574feed4a8a72f2cfb87",
   "appId": "1215052381896950",
-  "validationToken": "cproject_prod"
+  "validationToken": "cproject_prod",
+  "SUBSCRIPTION_NAME": "shared-worker-subscription",
+  "TOPIC_NAME": "message-process-queue",
 }

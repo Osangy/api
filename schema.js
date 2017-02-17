@@ -1,8 +1,9 @@
 import { schema as mongoSchema, resolvers as mongoResolvers } from './mongo/schema';
 import { makeExecutableSchema } from 'graphql-tools';
 import { merge, reverse } from 'lodash';
-import { User, Message, Conversation, Cart, Product, Variant } from './mongo/models';
+import { User, Message, Conversation, Cart, Product, Variant, Shop } from './mongo/models';
 import * as facebook from './utils/facebookUtils';
+import shop from './utils/shop';
 import logging from './lib/logging';
 import Promise from 'bluebird';
 
@@ -17,6 +18,11 @@ const rootSchema = [`
 
     #The quantity
     quantity: Float!
+  }
+
+  type ShopErrorResponse {
+    shop: Shop,
+    errors: [String]
   }
 
   type Query {
@@ -52,6 +58,15 @@ const rootSchema = [`
 
     # Update the cart
     updateCart(userId: ID!, selections: [SelectionInput]!): Cart
+
+    # Connect to Stripe accounts
+    stripeConnect(authorizationCode: String!): ShopErrorResponse
+
+    # Send test button to webview
+    payCart(cartId: ID!): Boolean
+
+    # Create a fake Cart
+    createFakeCart(userId:ID!, price: Float): Cart
 
   }
 
@@ -126,6 +141,42 @@ const rootResolvers = {
       return Promise.resolve()
         .then(() => (
            Cart.updateCart(selections, context.user, userId)
+        ))
+        .then((cart) => (
+          cart
+        ));
+    },
+    stripeConnect(root, {authorizationCode}, context){
+      return new Promise((resolve, reject) => {
+
+        context.user.getStripeToken(authorizationCode).then((shop) => {
+          resolve({
+            shop: shop,
+            errors: null
+          });
+        }).catch((err) => {
+          console.log(err.message);
+          resolve({
+            shop: null,
+            errors: [err.message]
+          })
+        });
+
+      });
+    },
+    payCart(root, { cartId }, context){
+      return Promise.resolve()
+        .then(() => (
+           shop.payCart(context.user, cartId)
+        ))
+        .then((parsedBody) => (
+          true
+        ));
+    },
+    createFakeCart(root, { userId, price }, context){
+      return Promise.resolve()
+        .then(() => (
+           Cart.createFakeCart(context.user, userId)
         ))
         .then((cart) => (
           cart

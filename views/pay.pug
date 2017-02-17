@@ -1,0 +1,43 @@
+doctype html
+html(lang="en")
+  head
+    title Pay Cart
+    meta(name="viewport" content="width=device-width, initial-scale=1")
+    link(rel="stylesheet" type="text/css" href="/css/payment.css")
+    script(src="/jquery-3.1.1.min.js")
+    script(type="text/javascript" src="https://js.stripe.com/v3/")
+    script(type="text/javascript" src="https://unpkg.com/axios/dist/axios.min.js")
+    script(type="text/javascript").
+      (function(d, s, id){
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) {return;}
+        js = d.createElement(s); js.id = id;
+        js.src = "//connect.facebook.com/en_US/messenger.Extensions.js";
+        fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'Messenger'));
+    script(type="text/javascript").
+      var stripe = Stripe('pk_test_UV9YSjMjAHd5AerCCLBbTp7Y');
+      var elements = stripe.elements();
+    script(type="text/javascript" src="/javascript/payment.js")
+
+
+  body
+    form
+      div(class="group")
+        label
+          span Name
+          input(class="field" placeholder="Jane Doe")
+        label
+          span Phone
+          input(class="field" placeholder="06 21 81 88 98")
+      div(class="group")
+        label
+          span Card
+          div(id="card-element" class="field")
+      input(type="hidden" name="cartId" value=cartId)
+      button(type="submit" ) Pay #{price}€
+      div(class="outcome")
+        div(class="error")
+        div(class="success")
+          | Success your Stripe token is
+          span(class="token")

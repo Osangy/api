@@ -5,6 +5,8 @@ import moment from 'moment';
 import _ from 'lodash';
 import logging from '../lib/logging';
 import background from '../lib/background';
+import rp from 'request-promise';
+import config from 'config';
 
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 Promise.promisifyAll(require("mongoose"));
@@ -115,6 +117,15 @@ let Schema = mongoose.Schema
         type: String,
         required: true
       },
+      stripe: {
+        token_type : String,
+        stripe_publishable_key: String,
+        scope: String,
+        livemode: Boolean,
+        stripe_user_id: String,
+        refresh_token: String,
+        access_token: String
+      },
       shopUrl: { type: String },
       pageId: { type: String },
       pageToken: { type: String },
@@ -125,8 +136,8 @@ let Schema = mongoose.Schema
       timestamps: true
   });
 
-  // Pre-save of user to database, hash password if password is modified or new
-  ShopSchema.pre('save', function(next) {
+// Pre-save of user to database, hash password if password is modified or new
+ShopSchema.pre('save', function(next) {
     const shop = this,
           SALT_FACTOR = 5;
 
@@ -141,16 +152,55 @@ let Schema = mongoose.Schema
         next();
       });
     });
-  });
+});
 
-  // Method to compare password for login
-  ShopSchema.methods.comparePassword = function(candidatePassword, cb) {
+// Method to compare password for login
+ShopSchema.methods.comparePassword = function(candidatePassword, cb) {
     bcrypt.compare(candidatePassword, this.password, function(err, isMatch) {
       if (err) { return cb(err); }
 
       cb(null, isMatch);
     });
-  }
+}
+
+ShopSchema.methods.getStripeToken = function(authorizationCode){
+
+    const shop = this;
+
+    return new Promise((resolve, reject) => {
+      const options = {
+        method: 'POST',
+        uri: 'https://connect.stripe.com/oauth/token',
+        body: {
+            client_secret: config.STRIPE_TEST_KEY,
+            code: authorizationCode,
+            grant_type: "authorization_code",
+            client_id: config.STRIPE_DEV_CLIENT_ID
+        },
+        json: true // Automatically stringifies the body to JSON
+    };
+
+      rp(options).then((parsedBody) => {
+        logging.info("Got response auth from stripe : ");
+        logging.info(parsedBody);
+        if(parsedBody.access_token){
+          _.forIn(parsedBody, (value, key) => {
+            shop.stripe[key] = value;
+          });
+        }
+
+        return shop.save();
+
+      }).then((shop) => {
+        resolve(shop);
+      }).catch((err) => {
+        reject(err);
+      })
+
+
+    });
+
+}
 
 
   /*
@@ -556,11 +606,55 @@ const CartSchema = mongoose.Schema({
       totalPriceProduct: Number
     }],
     totalPrice: Number,
-    nbProducts: Number
+    nbProducts: Number,
+    chargeId: String,
+    chargeDate: Date,
+    isPaid: {
+      type: Boolean,
+      default: false
+    }
   },
   {
     timestamps: true
 });
+
+CartSchema.statics.createFakeCart = function(shop, userId, price = 100){
+
+  return new Promise((resolve, reject) => {
+
+    let persistentUser;
+
+    User.findById(userId).then((user) => {
+      if(!user) reject(new Error("No user with this id"));
+      persistentUser = user;
+      Cart.findOne({user : user, shop : shop});
+    }).then((cart) => {
+
+      if(!cart){
+        let newCart = new Cart({
+          shop: shop,
+          user: persistentUser,
+          totalPrice: price,
+          nbProducts: 3
+        });
+
+        return newCart.save();
+      }
+      else{
+        cart.totalPrice = price;
+        cart.nbProducts = 2;
+        return cart.save();
+      }
+
+
+    }).then((cart) => {
+      resolve(cart);
+    }).catch((err) => {
+      reject(err);
+    })
+  })
+
+}
 
 CartSchema.statics.addProduct = function(productId, shop, userId){
 
@@ -718,7 +812,97 @@ CartSchema.methods.cleanSelections = function(){
   this.nbProducts = nbProducts;
 }
 
+CartSchema.methods.totalClean = function(){
 
+  return new Promise((resolve, reject) => {
+    this.selections = [];
+    this.totalPrice = 0;
+    this.nbProducts = 0;
+    this.chargeId = null;
+    this.chargeDate = null;
+    this.isPaid = false;
+    this.save().then((cart) => {
+      resolve(cart);
+    }).catch((err) => {
+      reject(err);
+    })
+  })
+
+}
+
+/*
+* ORDER SCHEMA
+*/
+
+const OrderSchema = mongoose.Schema({
+    shop: {
+      type: Schema.Types.ObjectId,
+      ref: 'Shop',
+      index: true
+    },
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      index: true
+    },
+    price: Number,
+    nbProducts: Number,
+    chargeId: String,
+    chargeDate: Date,
+    shippingAddress: String,
+    billingAddress: String,
+    status:{
+      type: String,
+      enum: ['paid', 'sent', 'delivered']
+    }
+  },
+  {
+    timestamps: true
+});
+
+
+OrderSchema.statics.createFromCart = function(cartId){
+
+  return new Promise((resolve, reject) => {
+
+    let finalOrder;
+    let oldCart;
+
+    Cart.findById(cartId).populate("shop user"). then((cart) => {
+      if(!cart) reject(new Error("There is no cart with this id"));
+
+      oldCart = cart;
+      //Create
+      let newOrder = new Order({
+        shop: cart.shop,
+        user: cart.user,
+        price: cart.totalPrice,
+        nbProducts: cart.nbProducts,
+        chargeId: cart.chargeId,
+        chargeDate: cart.chargeDate,
+        status: "paid"
+      });
+
+      return newOrder.save();
+    }).then((order) => {
+      finalOrder = order;
+
+      return oldCart.totalClean();
+    }).then((cart) => {
+      resolve(finalOrder);
+    }).catch((err) => {
+      reject(err);
+    })
+
+  });
+
+
+
+}
+
+
+
+let Order = mongoose.model('Order', OrderSchema);
 let Cart = mongoose.model('Cart', CartSchema);
 let Product = mongoose.model('Product', ProductSchema);
 let Variant = mongoose.model('Variant', VariantSchema);
@@ -727,6 +911,7 @@ let User = mongoose.model('User', UserSchema);
 let Message = mongoose.model('Message', MessageSchema);
 let Conversation = mongoose.model('Conversation', ConversationSchema);
 
+exports.Order = Order;
 exports.Cart = Cart;
 exports.Product = Product;
 exports.Variant = Variant;

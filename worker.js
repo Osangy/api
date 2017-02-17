@@ -17,6 +17,7 @@ import logging from './lib/logging';
 import facebook from './utils/facebookUtils';
 import files from './lib/files';
 import { Message } from './mongo/models';
+import shop from './utils/shop';
 
 
 /*
@@ -66,6 +67,7 @@ function subscribe () {
   // is killed.
   // [START subscribe]
   const unsubscribeFn = background.subscribe((err, message) => {
+    logging.info(message);
     // Any errors received are considered fatal.
     if (err) {
       logging.error(err);
@@ -81,6 +83,7 @@ function subscribe () {
         logging.error(err);
       })
     }
+    //Upload a file
     else if(message.fileUrl){
       logging.info(`Received request to process file of message ${message.mid}`);
       const pathname = url.parse(message.fileUrl).pathname;
@@ -99,6 +102,15 @@ function subscribe () {
           }
         });
       });
+    }
+    //Manage creation of an order, empty a cart, and update a charge
+    else if(message.cartId){
+      logging.info(`Received request to process paid cart ${message.cartId}`);
+      shop.processPaidCart(message.cartId).then((order) => {
+        logging.info(`New order created ${order._id}`)
+      }).catch((err) => {
+        logging.error(err.message);
+      })
     }
     else{
       logging.warn("We don't know this message");

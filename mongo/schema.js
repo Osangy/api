@@ -170,6 +170,28 @@ export const schema = [`
     stock: Float
   }
 
+
+  #The Shop
+  type Shop {
+    id: ID!
+
+    #The email of the shop
+    email : String!
+
+    #The name of the shop
+    shopName: String!
+
+    #The stripe infos
+    stripe: JSON
+
+    #The real url of the shop
+    shopUrl: String
+
+    #The facebook page id of the shop
+    pageId: String
+
+  }
+
 `];
 
 

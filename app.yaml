@@ -11,3 +11,6 @@ health_check:
   timeout_sec: 4
   unhealthy_threshold: 2
   healthy_threshold: 2
+
+manual_scaling:
+  instances: 1

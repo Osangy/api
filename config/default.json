@@ -10,9 +10,13 @@
     "jwtSession": {
         "session": false
     },
-    "SUBSCRIPTION_NAME": "shared-worker-subscription",
-    "TOPIC_NAME": "message-process-queue",
+    "SUBSCRIPTION_NAME": "shared-worker-subscription-dev",
+    "TOPIC_NAME": "message-process-queue-dev",
     "GCLOUD_PROJECT" : "cproject-158114",
-    "CLOUD_BUCKET" : "cproject-158114"
-
+    "CLOUD_BUCKET" : "cproject-158114",
+    "STRIPE_TEST_SECRET_KEY" : "sk_test_44hmiFYTzUMKyjuu09DkDNtK",
+    "STRIPE_LIVE_SECRET_KEY" : "sk_live_qX3jGwjq0uo2DJu4ia18LKKI",
+    "STRIPE_DEV_CLIENT_ID" : "ca_A5n5fmF9L5B2Tu3Fw4zsrsp13bRtubKG",
+    "STRIPE_PROD_CLIENT_ID" : "ca_A5n53NUyw063ayK5Y7d6M7MrNsz2DBzK",
+    "APP_FEES" : 0.01
 }

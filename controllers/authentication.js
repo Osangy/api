@@ -11,13 +11,20 @@ function generateToken(shop) {
 }
 
 function setShopInfo(request) {
-  return {
+
+  var infos = {
     _id: request._id,
     shopName: request.shopName,
     email: request.email,
     pageId : request.pageId,
     pageToken: request.pageToken
-  };
+  }
+
+  if(request.stripe){
+    infos.stripe = request.stripe;
+  }
+
+  return infos;
 }
 
 //========================================
@@ -96,7 +103,7 @@ exports.register = function(req, res, next) {
         return subscribePageToApp(shop.pageToken);
       }).then(function(){
 
-        let shopInfos = setShopInfo(shop);
+        const shopInfos = setShopInfo(shop);
         logging.info("Passed subscribe to page");
 
         res.status(201).json({
