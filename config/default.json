@@ -3,7 +3,7 @@
     "appId": "561836697360186",
     "pageAccessToken": "EAAHZBZCMzElzoBAEd76dCNCdstpR62t2DIC3AV1ZBekUYEzq89axyGBjmwCPM12puMxrxVZCIWWfWcCEcIynn6G4SRn8bkuVnhYXzTK4cZCC4wifqtl1k1lnLXyetUYij8dKp8TCEGQ1iZAEy5H6DbGRbaFl0TOcgmdrli3wAlMAZDZD",
     "validationToken": "adrien_test",
-    "serverURL": "",
+    "serverURL": "https://cproject-api.ngrok.io",
     "mongo_url":"mongodb://adrien:adrien@ds145649.mlab.com:45649/cproject",
     "page_id": "353319291690427",
     "jwtSecret": "MyS3cr3tK3Y",

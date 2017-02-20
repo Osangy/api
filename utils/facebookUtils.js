@@ -449,6 +449,37 @@ function subscribePageToApp(pageToken){
     rp(options).then((parsedBody) => {
       logging.info("Subscribded to page :");
       logging.info(parsedBody);
+
+      return whitelistDomains(pageToken);
+    }).then((parsedBody) => {
+      resolve(parsedBody);
+    }).catch((error) => {
+      reject(error);
+    })
+  });
+}
+
+
+function whitelistDomains(pageToken){
+  return new Promise((resolve, reject) => {
+
+    const uri = `https://graph.facebook.com/v2.6/me/thread_settings`;
+    const options = {
+      uri: uri,
+      qs: {
+        access_token: pageToken
+      },
+      json: {
+        setting_type: "domain_whitelisting",
+        whitelisted_domains: [config.serverURL],
+        domain_action_type: "add"
+      },
+      method: 'POST'
+    }
+
+    rp(options).then((parsedBody) => {
+      logging.info("Added domain to white list :");
+      logging.info(parsedBody);
       resolve(parsedBody);
     }).catch((error) => {
       reject(error);

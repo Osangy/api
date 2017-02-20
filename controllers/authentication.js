@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { Shop } from '../mongo/models';
 import config from 'config';
-import { subscribePageToApp } from '../utils/facebookUtils';
+import { subscribePageToApp,  } from '../utils/facebookUtils';
 import logging from '../lib/logging';
 
 
@@ -102,7 +102,7 @@ exports.register = function(req, res, next) {
         //Once saved, we subscribe the app to the page
         return subscribePageToApp(shop.pageToken);
       }).then(function(){
-
+        
         const shopInfos = setShopInfo(shop);
         logging.info("Passed subscribe to page");
 
