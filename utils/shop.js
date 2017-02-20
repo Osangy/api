@@ -39,6 +39,9 @@ function processPaidCart(cartId){
       newOrder = order;
       return stripe.updateChargeWithOrder(order);
     }).then((charge) => {
+
+      return facebook.sendReceipt(newOrder);
+    }).then((parsedBody) => {
       resolve(newOrder);
     }).catch((err) => {
       reject(err);

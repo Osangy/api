@@ -5,6 +5,8 @@ import Promise from 'bluebird';
 import logging from '../lib/logging';
 import stripe from '../utils/stripe';
 import background from '../lib/background';
+import moment from 'moment';
+import facebook from '../utils/facebookUtils';
 
 Promise.promisifyAll(require("mongoose"));
 
@@ -41,7 +43,7 @@ exports.validatePayment = function(req, res){
   let nowCart;
 
 
-  Cart.findById(cartId).populate('shop').then((cart) => {
+  Cart.findById(cartId).populate('shop user').then((cart) => {
 
     if(!cart){
       res.send("Error finding your cart. Your payment has been cancelled");
@@ -60,16 +62,22 @@ exports.validatePayment = function(req, res){
     //Once charged, we update the cart
     nowCart.isPaid = true;
     nowCart.chargeId = charge.id;
+    nowCart.chargeDate = moment();
+    nowCart.charge = JSON.stringify(charge);
     return nowCart.save();
 
+
   }).then((cart) => {
+
+    return facebook.sendMessage(cart.shop, cart.user.facebookId, "Merci, nous avons bien reçu votre paiement");
+  }).then(() => {
     //Queue the fact to send a message + create a command + update the charge
-    background.queuePaidCart(cart._id);
+    background.queuePaidCart(nowCart._id);
 
     res.send("charged");
 
   }).catch((err) => {
-    res.send(err);
+    res.send(err.message);
   })
 
 };

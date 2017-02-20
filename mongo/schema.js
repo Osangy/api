@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { User, Message, Shop, Product, Conversation, Cart, Variant } from './models';
+import { User, Message, Shop, Product, Conversation, Cart, Variant, Order } from './models';
 import { property } from 'lodash';
 import GraphQLJSON from 'graphql-type-json';
 import _ from 'lodash';
@@ -192,6 +192,43 @@ export const schema = [`
 
   }
 
+  #An Order
+  type Order {
+    id: ID!
+
+    #The Shop cocnerned by the Order
+    shop: Shop!
+
+    #The user/customer that did this Order
+    user: User!
+
+    #The total amount of the Order
+    price: Float!
+
+    #The number of products in the Order
+    nbProducts: Float
+
+    #The id of the charge
+    chargeId: String!
+
+    # A timestamp of when the customer was charged
+    chargeDate: Float # Actually a date
+
+    # The Shipping address
+    shippingAddress: String
+
+    # The billing address
+    billingAddress : String
+
+    # The status of the order
+    status: String!
+
+    #Date of creation
+    createdAt: Float
+
+
+  }
+
 `];
 
 
@@ -229,6 +266,14 @@ export const resolvers = {
   Variant: {
     product({product}, _, context) {
       return Product.findById(product);
+    }
+  },
+  Order: {
+    user({user}, _, context){
+      return User.findById(user);
+    },
+    shop({shop}, _, context){
+      return Shop.findById(shop);
     }
   },
   JSON: GraphQLJSON,

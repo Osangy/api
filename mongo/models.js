@@ -1,12 +1,13 @@
 import mongoose from 'mongoose';
 import Promise from 'bluebird';
-import { getFacebookUserInfos } from '../utils/facebookUtils';
+import { getFacebookUserInfos, sendMessage } from '../utils/facebookUtils';
 import moment from 'moment';
 import _ from 'lodash';
 import logging from '../lib/logging';
 import background from '../lib/background';
 import rp from 'request-promise';
 import config from 'config';
+import autoIncrement from 'mongoose-auto-increment';
 
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 Promise.promisifyAll(require("mongoose"));
@@ -39,7 +40,7 @@ let Schema = mongoose.Schema
   * Find a user, if does not exist create it
   */
 
-  UserSchema.statics.createOrFindUser = function(user_id, shop){
+UserSchema.statics.createOrFindUser = function(user_id, shop){
     return new Promise(function(resolve, reject){
 
       User.findOne({facebookId : user_id}).then(function(user){
@@ -68,7 +69,7 @@ let Schema = mongoose.Schema
   * Create a user from the Facebook infos
   */
 
-  UserSchema.statics.createFromFacebook = function(user_id, shop){
+UserSchema.statics.createFromFacebook = function(user_id, shop){
 
     return new Promise(function(resolve, reject){
 
@@ -609,6 +610,7 @@ const CartSchema = mongoose.Schema({
     nbProducts: Number,
     chargeId: String,
     chargeDate: Date,
+    charge: String,
     isPaid: {
       type: Boolean,
       default: false
@@ -834,6 +836,13 @@ CartSchema.methods.totalClean = function(){
 * ORDER SCHEMA
 */
 
+
+const OrderStatus = {
+  PAID: "PAID",
+  SENT: "SENT",
+  DELIVERED: "DELIVERED"
+}
+
 const OrderSchema = mongoose.Schema({
     shop: {
       type: Schema.Types.ObjectId,
@@ -845,20 +854,27 @@ const OrderSchema = mongoose.Schema({
       ref: 'User',
       index: true
     },
-    price: Number,
+    price: {
+      type: Number,
+      required: true
+    },
     nbProducts: Number,
     chargeId: String,
     chargeDate: Date,
+    charge: String,
     shippingAddress: String,
     billingAddress: String,
     status:{
       type: String,
-      enum: ['paid', 'sent', 'delivered']
+      enum: [OrderStatus.PAID, OrderStatus.SENT, OrderStatus.DELIVERED],
+      required: true
     }
   },
   {
     timestamps: true
 });
+autoIncrement.initialize(mongoose);
+OrderSchema.plugin(autoIncrement.plugin, 'Order');
 
 
 OrderSchema.statics.createFromCart = function(cartId){
@@ -880,7 +896,8 @@ OrderSchema.statics.createFromCart = function(cartId){
         nbProducts: cart.nbProducts,
         chargeId: cart.chargeId,
         chargeDate: cart.chargeDate,
-        status: "paid"
+        charge: cart.charge,
+        status: OrderStatus.PAID
       });
 
       return newOrder.save();
@@ -895,8 +912,55 @@ OrderSchema.statics.createFromCart = function(cartId){
     })
 
   });
+}
 
 
+OrderSchema.methods.updateStatus = function(newStatus){
+
+  _.upperCase(newStatus);
+  console.log(newStatus);
+  let finalOrder;
+
+  return new Promise((resolve, reject) => {
+
+    const actualStatus = _.upperCase(this.status);
+
+    this.status = newStatus
+    // if(actualStatus === OrderStatus.PAID){
+    //   if(newStatus === OrderStatus.SENT){
+    //     this.status = OrderStatus.SENT;
+    //   }
+    //   else{
+    //     reject(new Error("Wrong status update. From PAID, it can only update to SENT"));
+    //   }
+    // }
+    // else if(actualStatus === OrderStatus.SENT){
+    //   if(newStatus === OrderStatus.DELIVERED){
+    //     this.status = OrderStatus.DELIVERED;
+    //   }
+    //   else{
+    //     reject(new Error("Wrong status update. From SENT, it can only update to DELIVERED"));
+    //   }
+    // }
+    // else if(actualStatus === OrderStatus.DELIVERED){
+    //   reject(new Error("Wrong status update. No update available from DELIVERED"));
+    // }
+
+    this.save().then((order) => {
+      finalOrder = order;
+
+      if(order.status === OrderStatus.SENT){
+        return sendMessage(order.shop, order.user.facebookId, `Votre commande #${order._id} vient d'être envoyée`);
+      }
+      else{
+        resolve(finalOrder)
+      }
+    }).then((parsedBody) => {
+      resolve(finalOrder);
+    }).catch((err) => {
+      reject(err);
+    })
+  });
 
 }
 

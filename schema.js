@@ -1,7 +1,7 @@
 import { schema as mongoSchema, resolvers as mongoResolvers } from './mongo/schema';
 import { makeExecutableSchema } from 'graphql-tools';
 import { merge, reverse } from 'lodash';
-import { User, Message, Conversation, Cart, Product, Variant, Shop } from './mongo/models';
+import { User, Message, Conversation, Cart, Product, Variant, Shop, Order } from './mongo/models';
 import * as facebook from './utils/facebookUtils';
 import shop from './utils/shop';
 import logging from './lib/logging';
@@ -10,7 +10,11 @@ import Promise from 'bluebird';
 Promise.promisifyAll(require("mongoose"));
 
 const rootSchema = [`
-  # A list of options for the sort order of the feed
+  enum StatusOrder {
+    PAID
+    SENT
+    DELIVERED
+  }
 
   input SelectionInput {
     # The product
@@ -43,6 +47,9 @@ const rootSchema = [`
 
     # The cart of a user
     cart(userId: ID!): Cart
+
+    # The orders of a shop
+    orders(limit : Int = 30): [Order]
   }
 
   type Mutation {
@@ -67,6 +74,9 @@ const rootSchema = [`
 
     # Create a fake Cart
     createFakeCart(userId:ID!, price: Float): Cart
+
+    # Update status of an orders
+    updateStatusOrder(orderId: ID!, newStatus: StatusOrder!): Order
 
   }
 
@@ -106,6 +116,9 @@ const rootResolvers = {
     },
     cart(root, { userId }, context){
       return Cart.findOne({user: userId});
+    },
+    orders(root, {limit}, context){
+      return Order.find({shop : context.user}).sort({createdAt : -1}).limit(limit);
     }
   },
   Mutation : {
@@ -182,6 +195,20 @@ const rootResolvers = {
           cart
         ));
     },
+    updateStatusOrder(root, {orderId, newStatus}, context){
+      return Promise.resolve()
+        .then(() => {
+          console.log(orderId);
+          return Order.findById(orderId).populate("shop user");
+        })
+        .then((order) => (
+          order.updateStatus(newStatus)
+        ))
+        .then((order) => {
+          console.log(order._id);
+          return order;
+        });
+    }
   }
 };
 

@@ -47,7 +47,7 @@ const requireLogin = passport.authenticate('local', { session: false });
 */
 Promise.promisifyAll(require("mongoose"));
 mongoose.connect(config.mongo_url);
-var db = mongoose.connection;
+let db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 
 
@@ -98,6 +98,13 @@ app.use('/admin', adminRoutes);
 
 
 //TODO: STRIPE WEBHOOKS when user desauthorize
+/*
+* STRIPE
+*/
+
+const stripeRoutes = express.Router();
+stripeRoutes.post('/', routes.stripe.base);
+app.use('/stripe', stripeRoutes);
 
 
 /*

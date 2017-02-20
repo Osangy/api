@@ -5,6 +5,7 @@ import { Shop, Message } from '../mongo/models';
 import logging from '../lib/logging';
 import request from 'request';
 import rp from 'request-promise';
+import moment from 'moment';
 
 Promise.promisifyAll(require("mongoose"));
 
@@ -274,22 +275,12 @@ function sendButtonForPayCart(shop, recipientId, cart){
   };
 
   return new Promise(function(resolve, reject){
-
-    var options = {
-      uri: 'https://graph.facebook.com/v2.6/me/messages',
-      qs: { access_token: shop.pageToken },
-      method: 'POST',
-      json: messageData
-    }
-
-    rp(options).then((parsedBody) => {
+    send(messageData, shop.pageToken).then((parsedBody) =>{
       logging.info("Send button for cart "+cart._id);
-      logging.info(parsedBody);
       resolve(parsedBody);
     }).catch((err) => {
       reject(err);
     })
-
   });
 }
 
@@ -304,26 +295,72 @@ function sendAction(shop, recipientId, action = "mark_seen"){
 
 
   return new Promise(function(resolve, reject){
-    request({
+    send(messageData, shop.pageToken).then((parsedBody) =>{
+      resolve(parsedBody);
+    }).catch((err) => {
+      reject(err);
+    })
+  });
+}
+
+
+function sendReceipt(order){
+
+  const charge = JSON.parse(order.charge);
+  const payment_method = `${charge.source.brand} ${charge.source.last4}`;
+
+  const messageData = {
+    recipient: {
+      id: order.user.facebookId
+    },
+    message: {
+      attachment: {
+        type: "template",
+        payload: {
+          template_type: "receipt",
+          recipient_name: `${order.user.firstName} ${order.user.lastName}`,
+          order_number: order._id,
+          currency: "EUR",
+          payment_method: payment_method,
+          timestamp: moment(order.chargeDate).unix(),
+          summary: {
+            total_cost: order.price
+          }
+        }
+      }
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    send(messageData, order.shop.pageToken).then((parsedBody) => {
+      logging.info(`Receipt sent for order ${order._id}`);
+      resolve(parsedBody);
+    }).catch((err) => {
+      reject(err);
+    })
+  })
+
+}
+
+
+
+function send(messageData, pageToken){
+
+  return new Promise(function(resolve, reject){
+
+    var options = {
       uri: 'https://graph.facebook.com/v2.6/me/messages',
-      qs: { access_token: shop.pageToken },
+      qs: { access_token: pageToken },
       method: 'POST',
       json: messageData
+    }
 
-    }, function (error, response, body) {
-      if (!error && response.statusCode == 200) {
-        resolve(body);
-      } else {
-        if(error){
-          reject(error);
-        }
-        else{
-          let error = new Error("Error when sending sender action");
-          reject(error)
-        }
+    rp(options).then((parsedBody) => {
+      resolve(parsedBody);
+    }).catch((err) => {
+      reject(err);
+    })
 
-      }
-    });
   });
 }
 
@@ -419,6 +456,7 @@ function subscribePageToApp(pageToken){
   });
 }
 
+exports.sendReceipt = sendReceipt;
 exports.sendButtonForPayCart = sendButtonForPayCart;
 exports.sendMessage = sendMessage;
 exports.subscribePageToApp = subscribePageToApp;
