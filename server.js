@@ -11,7 +11,6 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import { graphqlExpress, graphiqlExpress } from 'graphql-server-express';
 import { printSchema } from 'graphql/utilities/schemaPrinter';
-import schema from './schema';
 import routes from './routes';
 import config from 'config';
 import crypto from 'crypto';
@@ -23,8 +22,15 @@ import { FacebookStrategy } from 'passport-facebook';
 import * as AuthenticationController from './controllers/authentication';
 import multer from 'multer';
 import logging from './lib/logging';
-var upload = multer({ dest: './uploads/' });
+import shop from './utils/shop';
 
+import { createServer } from 'http';
+import { SubscriptionServer } from 'subscriptions-transport-ws';
+import { subscriptionManager } from './graphql/subscriptions';
+
+import schema from './graphql/schema';
+
+var upload = multer({ dest: './uploads/' });
 const passportService = require('./utils/passport');
 
 
@@ -184,7 +190,40 @@ app.use(logging.errorLogger);
 db.once('open', function() {
   logging.info("Connected to the database");
 
-  app.listen(app.get('port'),() => logging.info(
+  const server = app.listen(app.get('port'),() => logging.info(
     `Server running on port ${app.get('port')}`
   ));
+
+  const WS_PORT = 5000;
+
+
+  const wsServer = createServer(app);
+
+  wsServer.listen(WS_PORT, () => console.log( // eslint-disable-line no-console
+    `Websocket server is now running on${WS_PORT}`
+  ));
+
+  startSubscriptionServer(wsServer);
 });
+
+
+//Function that start to listen to graphql subscriptions
+function startSubscriptionServer(server){
+  // eslint-disable-next-line
+  new SubscriptionServer(
+    {
+      subscriptionManager,
+      onConnect: ({authToken}) => {
+        return shop.validatePage(authToken)
+      },
+      onSubscribe: (msg, params) => {
+        return Object.assign({}, params, {
+          context: {}
+        });
+      }
+    },{
+      server: server,
+      path:"/subscriptions"
+    }
+  );
+}

@@ -1,10 +1,10 @@
-import { schema as mongoSchema, resolvers as mongoResolvers } from './mongo/schema';
+import { schema as mongoSchema, resolvers as mongoResolvers } from '../mongo/schema';
 import { makeExecutableSchema } from 'graphql-tools';
 import { merge, reverse } from 'lodash';
-import { User, Message, Conversation, Cart, Product, Variant, Shop, Order } from './mongo/models';
-import * as facebook from './utils/facebookUtils';
-import shop from './utils/shop';
-import logging from './lib/logging';
+import { User, Message, Conversation, Cart, Product, Variant, Shop, Order } from '../mongo/models';
+import * as facebook from '../utils/facebookUtils';
+import shop from '../utils/shop';
+import logging from '../lib/logging';
 import Promise from 'bluebird';
 
 Promise.promisifyAll(require("mongoose"));
@@ -80,9 +80,15 @@ const rootSchema = [`
 
   }
 
+  type Subscription {
+    # Subscription fires on every comment added
+    messageAdded: Message
+  }
+
   schema {
     query: Query
     mutation: Mutation
+    subscription: Subscription
   }
 `];
 
@@ -209,7 +215,15 @@ const rootResolvers = {
           return order;
         });
     }
-  }
+  },
+  Subscription: {
+    messageAdded(message) {
+      // the subscription payload is the comment.
+      console.log("Message");
+      console.log(message);
+      return message;
+    },
+  },
 };
 
 

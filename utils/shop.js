@@ -51,7 +51,22 @@ function processPaidCart(cartId){
 
 }
 
+function validatePage(pageId){
+  return new Promise((resolve, reject) => {
+    let newOrder;
+
+    Shop.findOne({pageId: pageId}).then((page) =>{
+      if(!page) reject(new Error("This page does not exist"))
+      resolve(page);
+    }).catch((err) => {
+      reject(err);
+    })
+
+  });
+}
+
 module.exports = {
   payCart,
-  processPaidCart
+  processPaidCart,
+  validatePage
 };

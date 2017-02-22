@@ -6,6 +6,7 @@ import logging from '../lib/logging';
 import request from 'request';
 import rp from 'request-promise';
 import moment from 'moment';
+import { pubsub } from '../graphql/subscriptions';
 
 Promise.promisifyAll(require("mongoose"));
 
@@ -94,6 +95,8 @@ function manageMessage(messageObject, shop){
     }
     else{
       Message.createFromFacebook(messageObject, shop).then(function(message){
+        //Send to subscriptions the new message
+        pubsub.publish('messageAdded', message);
         resolve(message);
       }).catch(function(err){
         reject(err);
