@@ -7,6 +7,7 @@ import request from 'request';
 import rp from 'request-promise';
 import moment from 'moment';
 import { pubsub } from '../graphql/subscriptions';
+import background from '../lib/background';
 
 Promise.promisifyAll(require("mongoose"));
 

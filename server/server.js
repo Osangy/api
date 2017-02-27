@@ -23,8 +23,9 @@ import * as AuthenticationController from './controllers/authentication';
 import multer from 'multer';
 import logging from './lib/logging';
 import shop from './utils/shop';
+import request from 'request';
 
-import { createServer } from 'http';
+import http from 'http';
 import { SubscriptionServer } from 'subscriptions-transport-ws';
 import { subscriptionManager } from './graphql/subscriptions';
 
@@ -35,9 +36,12 @@ const passportService = require('./utils/passport');
 
 
 const app = express();
-app.set('port', (process.env.PORT || 3001));
 app.set('view engine', 'pug');
 app.set('views', './views');
+
+// Use express-ws to enable web sockets.
+require('express-ws')(app);
+
 app.use(express.static('files'));
 app.use('*', cors());
 app.use(morgan('combined'));
@@ -68,6 +72,12 @@ app.get('/_ah/health', (req, res) => {
 // Add the request logger before anything else so that it can
 // accurately log requests.
 app.use(logging.requestLogger);
+
+app.get('/socketip', (req, res) => {
+  getExternalIp((externalIp) => {
+    res.send(externalIp);
+  });
+});
 
 
 /*
@@ -190,18 +200,14 @@ app.use(logging.errorLogger);
 db.once('open', function() {
   logging.info("Connected to the database");
 
-  const server = app.listen(app.get('port'),() => logging.info(
-    `Server running on port ${app.get('port')}`
-  ));
+  http.createServer(app).listen((process.env.PORT || 3001), () => {
+    console.log(`App listening on port ${(process.env.PORT || 3001)}`);
+  });
 
-  const WS_PORT = 5000;
-
-
-  const wsServer = createServer(app);
-
-  wsServer.listen(WS_PORT, () => console.log( // eslint-disable-line no-console
-    `Websocket server is now running on${WS_PORT}`
-  ));
+  // Start the websocket server
+  const wsServer = app.listen('65080', () => {
+    console.log('Websocket server listening on port %s', wsServer.address().port);
+  });
 
   startSubscriptionServer(wsServer);
 });
@@ -213,10 +219,8 @@ function startSubscriptionServer(server){
   new SubscriptionServer(
     {
       subscriptionManager,
-      onConnect: ({authToken}) => {
-        return shop.validatePage(authToken)
-      },
       onSubscribe: (msg, params) => {
+        console.log("Sub");
         return Object.assign({}, params, {
           context: {}
         });
@@ -227,3 +231,30 @@ function startSubscriptionServer(server){
     }
   );
 }
+
+
+// [START external_ip]
+// In order to use websockets on App Engine, you need to connect directly to
+// application instance using the instance's public external IP. This IP can
+// be obtained from the metadata server.
+const METADATA_NETWORK_INTERFACE_URL = 'http://metadata/computeMetadata/v1/' +
+    '/instance/network-interfaces/0/access-configs/0/external-ip';
+
+function getExternalIp (cb) {
+  const options = {
+    url: METADATA_NETWORK_INTERFACE_URL,
+    headers: {
+      'Metadata-Flavor': 'Google'
+    }
+  };
+
+  request(options, (err, resp, body) => {
+    if (err || resp.statusCode !== 200) {
+      console.log('Error while talking to metadata server, assuming localhost');
+      cb('localhost');
+      return;
+    }
+    cb(body);
+  });
+}
+// [END external_ip]

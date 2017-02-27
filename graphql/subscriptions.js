@@ -26,25 +26,10 @@ const subscriptionManager = new SubscriptionManager({
   // every time a new comment is posted whose repository name matches args.repoFullName.
   setupFunctions: {
     messageAdded: (options, args) => ({
-      messageAdded: message => message.isEcho === false,
+      messageAdded: message => message.conversation._id === args.conversationId,
     }),
   },
 });
 
-// start a subscription
-// subscriptionManager.subscribe({
-//   query: `
-//     subscription newMessages($pageId: String!){
-//       messageAdded(pageId: $pageId) { # <-- this is the subscription name
-//         id
-//       }
-//     }
-//   `,
-//   variables: {
-//     pageId: '353319291690427',
-//   },
-//   context: {},
-//   callback: (err, data) => console.log(data),
-// });
 
 export { subscriptionManager, pubsub};

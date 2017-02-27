@@ -3,6 +3,7 @@ import { User, Message, Shop, Product, Conversation, Cart, Variant, Order } from
 import { property } from 'lodash';
 import GraphQLJSON from 'graphql-type-json';
 import _ from 'lodash';
+import moment from 'moment';
 import Promise from 'bluebird';
 
 Promise.promisifyAll(require("mongoose"));
@@ -84,6 +85,9 @@ export const schema = [`
 
     # The number of messages that has been exchanged in this conversation
     nbMessages: Float
+
+    # The number of unread messages
+    nbUnreadMessages: Float
 
     # The messages that has been sent in this conversation
     messages: [Message]
@@ -234,6 +238,10 @@ export const schema = [`
 
 export const resolvers = {
   Message: {
+    id: property("_id"),
+    timestamp({timestamp}, _, context) {
+      return moment(timestamp).unix()
+    },
     sender({ sender }, _, context) {
       return User.findOne({ _id : sender});
     },
@@ -245,7 +253,6 @@ export const resolvers = {
     user({user}, _, context) {
       return User.findOne({_id : user});
     },
-    nbMessages: property("nb_messages"),
     messages(obj, args, context){
       return Message.find({conversation : obj._id});
     }

@@ -5,5 +5,5 @@
   "validationToken": "cproject_prod",
   "SUBSCRIPTION_NAME": "shared-worker-subscription",
   "TOPIC_NAME": "message-process-queue",
-  "serverURL": "https://cproject-158114.appspot.com/",
+  "serverURL": "https://cproject-158114.appspot.com/"
 }

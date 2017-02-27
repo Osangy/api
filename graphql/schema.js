@@ -2,10 +2,11 @@ import { schema as mongoSchema, resolvers as mongoResolvers } from '../mongo/sch
 import { makeExecutableSchema } from 'graphql-tools';
 import { merge, reverse } from 'lodash';
 import { User, Message, Conversation, Cart, Product, Variant, Shop, Order } from '../mongo/models';
-import * as facebook from '../utils/facebookUtils';
+import facebook from '../utils/facebookUtils';
 import shop from '../utils/shop';
 import logging from '../lib/logging';
 import Promise from 'bluebird';
+import moment from 'moment';
 
 Promise.promisifyAll(require("mongoose"));
 
@@ -31,7 +32,7 @@ const rootSchema = [`
 
   type Query {
     # A list of message
-    message(limit: Int = 30, conversationId: String!) : [Message]
+    messages(limit:Int!, conversationId: String!, offset:Float!) : [Message]
 
     # The list of conversations of a page_id
     conversation(limit: Int = 10): [Conversation]
@@ -78,11 +79,14 @@ const rootSchema = [`
     # Update status of an orders
     updateStatusOrder(orderId: ID!, newStatus: StatusOrder!): Order
 
+    #Set messages of a conversation as read
+    setMessagesAsRead(conversationId: ID!): Conversation
+
   }
 
   type Subscription {
     # Subscription fires on every comment added
-    messageAdded: Message
+    messageAdded(conversationId: ID!): Message
   }
 
   schema {
@@ -95,16 +99,28 @@ const rootSchema = [`
 
 const rootResolvers = {
   Query: {
-    message(root, {limit, conversationId}, context) {
-      const limitValidator = (limit > 30) ? 30 : limit;
-
+    messages(root, {limit, conversationId, offset}, context) {
+      const limitValidator = (limit > 100) ? 100 : limit;
+      let messsagesToReturn;
+      const offsetDate = (moment.unix(offset)).toDate();
       return Promise.resolve()
         .then(() => (
-           Message.find({conversation: conversationId}).sort({timestamp : -1}).limit(limit)
+           Message.find({conversation: conversationId, timestamp:{"$lt" : offsetDate}}).sort({timestamp : -1}).populate("conversation").limit(limit)
         ))
-        .then((messages) => (
-          reverse(messages)
-        ));
+        .then((messages) => {
+          messsagesToReturn = reverse(messages);
+          if(messages){
+            let conversation = messages[0].conversation;
+            conversation.nbUnreadMessages = 0;
+            return conversation.save();
+          }
+          else{
+            return messsagesToReturn;
+          }
+        })
+        .then((conversation) =>(
+          messsagesToReturn
+        ))
     },
     conversation(root, { limit }, context){
       const limitValidator = (limit > 20) ? 10 : limit;
@@ -214,13 +230,23 @@ const rootResolvers = {
           console.log(order._id);
           return order;
         });
+    },
+    setMessagesAsRead(root, {conversationId}, context){
+      return Promise.resolve()
+        .then(() => {
+          return Conversation.findById(conversationId)
+        })
+        .then((conversation) => {
+          conversation.nbUnreadMessages = 0;
+          return conversation.save();
+        })
+        .then((conversation) => {
+          return conversation
+        });
     }
   },
   Subscription: {
     messageAdded(message) {
-      // the subscription payload is the comment.
-      console.log("Message");
-      console.log(message);
       return message;
     },
   },

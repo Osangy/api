@@ -376,6 +376,24 @@ const MessageSchema = mongoose.Schema({
   });
 
 
+//After a message save we increment the nb of message of the conversation
+MessageSchema.post('save', function(message) {
+    Conversation.findById(message.conversation._id).then((conversation) => {
+      conversation.nbMessages++;
+      if(!message.isEcho){
+        conversation.nbUnreadMessages++;
+      }
+      conversation.lastMessageDate = moment();
+      return conversation.save();
+    }).then((conversation) => {
+      console.log("Updated conversation messages info");
+    }).catch((err) => {
+      console.error("Problem updating conversation messages info");
+      console.error(err.message);
+    })
+});
+
+
 /*
 * Create a new message entry
 */
@@ -502,7 +520,7 @@ MessageSchema.statics.createFromFacebookEcho = (messageObject, shop) => {
   return new Promise((resolve, reject) => {
 
     //Find a message with this mid
-    Message.findOne({ mid: messageObject.message.mid }).then((message) => {
+    Message.findOne({ mid: messageObject.message.mid }).populate("conversation").then((message) => {
 
       //Update message if we already have it in the database
       if(message){
@@ -540,11 +558,15 @@ MessageSchema.statics.createFromFacebookEcho = (messageObject, shop) => {
         ref: 'User',
         index: true
       },
-      nb_messages: {
+      nbMessages: {
         type: Number,
         default: 0
       },
-      last_message_date: Date
+      nbUnreadMessages: {
+        type: Number,
+        default: 0
+      },
+      lastMessageDate: Date
     },
     {
       timestamps: true
