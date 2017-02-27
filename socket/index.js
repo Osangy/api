@@ -1,23 +1,32 @@
+// Activate Google Cloud Trace and Debug when in production
+if (process.env.NODE_ENV === 'production') {
+  require('@google/cloud-trace').start();
+  require('@google/cloud-debug');
+}
+
 var express = require('express');
 var app = express();
 var expressWs = require('express-ws')(app);
+import logging from '../lib/logging';
 
 app.use(function (req, res, next) {
-  console.log('middleware');
+  logging.info('middleware');
   req.testing = 'testing';
   return next();
 });
 
 app.get('/', function(req, res, next){
-  console.log('get route', req.testing);
-  res.end();
+  logging.info('get route', req.testing);
+  res.send("Ok");
 });
 
 app.ws('/', function(ws, req) {
   ws.on('message', function(msg) {
-    console.log(msg);
+    logging.info(msg);
   });
-  console.log('socket', req.testing);
+  logging.info('socket', req.testing);
 });
 
-app.listen(3000);
+app.listen(3000, () => {
+  console.log('App listening on port %s', 3000);
+});

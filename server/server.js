@@ -11,7 +11,7 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import { graphqlExpress, graphiqlExpress } from 'graphql-server-express';
 import { printSchema } from 'graphql/utilities/schemaPrinter';
-import routes from './routes';
+import routes from '../routes';
 import config from 'config';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
@@ -19,25 +19,25 @@ import Promise from 'bluebird';
 import morgan from 'morgan';
 import passport from 'passport';
 import { FacebookStrategy } from 'passport-facebook';
-import * as AuthenticationController from './controllers/authentication';
+import * as AuthenticationController from '../controllers/authentication';
 import multer from 'multer';
-import logging from './lib/logging';
-import shop from './utils/shop';
+import logging from '../lib/logging';
+import shop from '../utils/shop';
 import request from 'request';
 
 import http from 'http';
 import { SubscriptionServer } from 'subscriptions-transport-ws';
-import { subscriptionManager } from './graphql/subscriptions';
+import { subscriptionManager } from '../graphql/subscriptions';
 
-import schema from './graphql/schema';
+import schema from '../graphql/schema';
 
-var upload = multer({ dest: './uploads/' });
-const passportService = require('./utils/passport');
+var upload = multer({ dest: '../uploads/' });
+const passportService = require('../utils/passport');
 
 
 const app = express();
 app.set('view engine', 'pug');
-app.set('views', './views');
+app.set('views', '../views');
 
 // Use express-ws to enable web sockets.
 require('express-ws')(app);

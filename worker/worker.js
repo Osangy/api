@@ -12,12 +12,12 @@ import config from 'config';
 import url from 'url';
 import _ from 'lodash';
 
-import background from './lib/background'
-import logging from './lib/logging';
-import facebook from './utils/facebookUtils';
-import files from './lib/files';
-import { Message } from './mongo/models';
-import shop from './utils/shop';
+import background from '../lib/background'
+import logging from '../lib/logging';
+import facebook from '../utils/facebookUtils';
+import files from '../lib/files';
+import { Message } from '../mongo/models';
+import shop from '../utils/shop';
 
 
 /*
