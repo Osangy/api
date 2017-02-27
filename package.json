@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node ${SCRIPT:-index.js}",
     "monitor": "nodemon ${SCRIPT:-index.js}",
+    "start-socket": "node socket",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

@@ -73,12 +73,6 @@ app.get('/_ah/health', (req, res) => {
 // accurately log requests.
 app.use(logging.requestLogger);
 
-app.get('/socketip', (req, res) => {
-  getExternalIp((externalIp) => {
-    res.send(externalIp);
-  });
-});
-
 
 /*
 * Facebook API
@@ -231,30 +225,3 @@ function startSubscriptionServer(server){
     }
   );
 }
-
-
-// [START external_ip]
-// In order to use websockets on App Engine, you need to connect directly to
-// application instance using the instance's public external IP. This IP can
-// be obtained from the metadata server.
-const METADATA_NETWORK_INTERFACE_URL = 'http://metadata/computeMetadata/v1/' +
-    '/instance/network-interfaces/0/access-configs/0/external-ip';
-
-function getExternalIp (cb) {
-  const options = {
-    url: METADATA_NETWORK_INTERFACE_URL,
-    headers: {
-      'Metadata-Flavor': 'Google'
-    }
-  };
-
-  request(options, (err, resp, body) => {
-    if (err || resp.statusCode !== 200) {
-      console.log('Error while talking to metadata server, assuming localhost');
-      cb('localhost');
-      return;
-    }
-    cb(body);
-  });
-}
-// [END external_ip]
