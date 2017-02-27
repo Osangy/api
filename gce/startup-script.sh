@@ -22,7 +22,7 @@ ln -s /opt/nodejs/bin/npm /usr/bin/npm
 # git requires $HOME and it's not set during the startup script.
 export HOME=/root
 git config --global credential.helper gcloud.sh
-git clone https://source.developers.google.com/p/$PROJECTID /opt/app
+git clone https://source.developers.google.com/p/$PROJECTID/r/cproject-server /opt/app/api
 
 # Install app dependencies
 cd /opt/app/api
