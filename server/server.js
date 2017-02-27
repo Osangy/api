@@ -198,12 +198,16 @@ db.once('open', function() {
     console.log(`App listening on port ${(process.env.PORT || 3001)}`);
   });
 
-  // Start the websocket server
-  const wsServer = app.listen('65080', () => {
-    console.log('Websocket server listening on port %s', wsServer.address().port);
-  });
+  // if (process.env.NODE_ENV !== 'production') {
+  //   // Start the websocket server
+  //   const wsServer = app.listen('65080', () => {
+  //     console.log('Websocket server listening on port %s', wsServer.address().port);
+  //   });
+  //
+  //   startSubscriptionServer(wsServer);
+  // }
 
-  startSubscriptionServer(wsServer);
+
 });
 
 

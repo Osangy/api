@@ -36,7 +36,7 @@ chown -R nodeapp:nodeapp /opt/app
 cat >/etc/supervisor/conf.d/node-app.conf << EOF
 [program:nodeapp]
 directory=/opt/app/api
-command=npm run start-socket
+command=SCRIPT=indexSocket.js npm start
 autostart=true
 autorestart=true
 user=nodeapp
