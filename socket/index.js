@@ -4,7 +4,7 @@ if (process.env.NODE_ENV === 'production') {
   require('@google/cloud-debug').start();
 }
 
-import { createServer } from 'http';
+import https from 'https';
 import mongoose from 'mongoose';
 import Promise from 'bluebird';
 import logging from '../lib/logging';
@@ -12,7 +12,20 @@ import { SubscriptionServer } from 'subscriptions-transport-ws';
 import { subscriptionManager } from '../graphql/subscriptions';
 import schema from '../graphql/schema';
 import config from 'config';
+import fs from 'fs';
+import express from 'express';
+import {Server} from 'ws';
 
+
+/*
+* SSL Certificate
+*/
+
+const privateKey  = fs.readFileSync('socket/sslcert/key.pem', 'utf8');
+const certificate = fs.readFileSync('socket/sslcert/cert.pem', 'utf8');
+const credentials = {key: privateKey, cert: certificate};
+
+let app = express();
 
 /*
 * MONGO DB Connection
@@ -23,13 +36,10 @@ let db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 
 
-const WS_PORT = 8080;
+const WS_PORT = 8443;
 
 // Create WebSocket listener server
-const websocketServer = createServer((request, response) => {
-  response.writeHead(404);
-  response.end();
-});
+let httpsServer = https.createServer(credentials, app);
 
 
 
@@ -38,13 +48,21 @@ db.once('open', function() {
   logging.info("Connected to the database");
 
   // Bind it to port and start listening
-  websocketServer.listen(WS_PORT, () => console.log(
-    `Websocket Server is now running on http://localhost:${WS_PORT}`
+  httpsServer.listen(WS_PORT, () => console.log(
+    `Websocket Server is now running on https://localhost:${WS_PORT}`
   ));
+  var wss = new Server({ server: httpsServer });
 
-  startSubscriptionServer(websocketServer);
+  wss.on('connection', function (wsConnect) {
+    wsConnect.on('message', function (message) {
+      console.log(message);
+    });
+  });
+
+  startSubscriptionServer(wss);
 
 });
+
 
 
 

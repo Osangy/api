@@ -25,7 +25,6 @@ import logging from '../lib/logging';
 import shop from '../utils/shop';
 import request from 'request';
 
-import http from 'http';
 import { SubscriptionServer } from 'subscriptions-transport-ws';
 import { subscriptionManager } from '../graphql/subscriptions';
 
@@ -34,16 +33,17 @@ import schema from '../graphql/schema';
 var upload = multer({ dest: '../uploads/' });
 const passportService = require('../utils/passport');
 
+const corsOptions = {
+  origin: 'http://localhost:9000',
+  credentials: true
+}
+
 
 const app = express();
 app.set('view engine', 'pug');
 app.set('views', '../views');
-
-// Use express-ws to enable web sockets.
-require('express-ws')(app);
-
+app.use(cors());
 app.use(express.static('files'));
-app.use('*', cors());
 app.use(morgan('combined'));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
@@ -60,6 +60,10 @@ mongoose.connect(config.mongo_url);
 let db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 
+
+app.get('/', (req, res) => {
+  res.status(200).send('ok');
+});
 
 /*
 * HEALTH CHECK FROM GOOGLE
@@ -91,6 +95,8 @@ app.use('/fb', facebookRoutes);
 */
 
 const authRoutes = express.Router();
+app.options('/auth/*', cors());
+//authRoutes.options('*',cors())
 authRoutes.get('/getPages', routes.facebook.accessPagesList);
 authRoutes.post('/register', AuthenticationController.register);
 authRoutes.post('/login', requireLogin, AuthenticationController.login);
@@ -194,38 +200,8 @@ app.use(logging.errorLogger);
 db.once('open', function() {
   logging.info("Connected to the database");
 
-  http.createServer(app).listen((process.env.PORT || 3001), () => {
+  app.listen((process.env.PORT || 3001), () => {
     console.log(`App listening on port ${(process.env.PORT || 3001)}`);
   });
 
-  // if (process.env.NODE_ENV !== 'production') {
-  //   // Start the websocket server
-  //   const wsServer = app.listen('65080', () => {
-  //     console.log('Websocket server listening on port %s', wsServer.address().port);
-  //   });
-  //
-  //   startSubscriptionServer(wsServer);
-  // }
-
-
 });
-
-
-//Function that start to listen to graphql subscriptions
-function startSubscriptionServer(server){
-  // eslint-disable-next-line
-  new SubscriptionServer(
-    {
-      subscriptionManager,
-      onSubscribe: (msg, params) => {
-        console.log("Sub");
-        return Object.assign({}, params, {
-          context: {}
-        });
-      }
-    },{
-      server: server,
-      path:"/subscriptions"
-    }
-  );
-}
