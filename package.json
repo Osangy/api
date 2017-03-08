@@ -5,9 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node ${SCRIPT:-index.js}",
-    "start-socket": "sudo node indexSocket.js",
-    "monitor": "nodemon ${SCRIPT:-index.js}",
     "start-socket": "node indexSocket.js",
+    "monitor": "nodemon ${SCRIPT:-index.js}",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -56,6 +55,7 @@
     "pug": "^2.0.0-beta6",
     "request": "^2.79.0",
     "request-promise": "^4.1.1",
+    "socket.io": "^1.7.3",
     "stripe": "^4.15.0",
     "subscriptions-transport-ws": "^0.5.2",
     "winston": "^2.3.1"
