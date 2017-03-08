@@ -36,7 +36,7 @@ let db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 
 
-const WS_PORT = 8443;
+const WS_PORT = config.SOCKET_PORT;
 
 // Create WebSocket listener server
 let httpsServer = https.createServer(credentials, app);

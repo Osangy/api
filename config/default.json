@@ -18,5 +18,6 @@
     "STRIPE_LIVE_SECRET_KEY" : "sk_live_qX3jGwjq0uo2DJu4ia18LKKI",
     "STRIPE_DEV_CLIENT_ID" : "ca_A5n5fmF9L5B2Tu3Fw4zsrsp13bRtubKG",
     "STRIPE_PROD_CLIENT_ID" : "ca_A5n53NUyw063ayK5Y7d6M7MrNsz2DBzK",
-    "APP_FEES" : 0.01
+    "APP_FEES" : 0.01,
+    "SOCKET_PORT" : 8443
 }
