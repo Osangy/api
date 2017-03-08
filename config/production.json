@@ -6,5 +6,5 @@
   "SUBSCRIPTION_NAME": "shared-worker-subscription",
   "TOPIC_NAME": "message-process-queue",
   "serverURL": "https://cproject-158114.appspot.com/",
-  "SOCKET_PORT" : 443
+  "SOCKET_PORT" : 8443
 }

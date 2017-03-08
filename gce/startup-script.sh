@@ -31,12 +31,13 @@ npm install
 # Create a nodeapp user. The application will run as this user.
 useradd -m -d /home/nodeapp nodeapp
 chown -R nodeapp:nodeapp /opt/app
+sudo usermod -a -G sudo nodeapp
 
 # Configure supervisor to run the node app.
 cat >/etc/supervisor/conf.d/node-app.conf << EOF
 [program:nodeapp]
 directory=/opt/app/api
-command=sudo node indexSocket.js
+command=node indexSocket.js
 autostart=true
 autorestart=true
 user=nodeapp
