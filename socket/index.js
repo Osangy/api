@@ -41,7 +41,9 @@ const WS_PORT = 8443;
 // Create WebSocket listener server
 let httpsServer = https.createServer(credentials, app);
 
-
+app.get('/', (req, res) => {
+  res.status(200).send('ok');
+});
 
 
 db.once('open', function() {
@@ -57,6 +59,7 @@ db.once('open', function() {
     wsConnect.on('message', function (message) {
       console.log(message);
     });
+    wsConnect.send('something');
   });
 
   startSubscriptionServer(wss);
