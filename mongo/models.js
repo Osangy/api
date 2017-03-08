@@ -100,42 +100,42 @@ UserSchema.statics.createFromFacebook = function(user_id, shop){
   }
 
 
-  //================================
-  // Shop Schema
-  //================================
-  const ShopSchema = new Schema({
-      email: {
-        type: String,
-        lowercase: true,
-        unique: true,
-        required: true
-      },
-      password: {
-        type: String,
-        required: true
-      },
-      shopName: {
-        type: String,
-        required: true
-      },
-      stripe: {
-        token_type : String,
-        stripe_publishable_key: String,
-        scope: String,
-        livemode: Boolean,
-        stripe_user_id: String,
-        refresh_token: String,
-        access_token: String
-      },
-      shopUrl: { type: String },
-      pageId: { type: String },
-      pageToken: { type: String },
-      resetPasswordToken: { type: String },
-      resetPasswordExpires: { type: Date }
+//================================
+// Shop Schema
+//================================
+const ShopSchema = new Schema({
+    email: {
+      type: String,
+      lowercase: true,
+      unique: true,
+      required: true
     },
-    {
-      timestamps: true
-  });
+    password: {
+      type: String,
+      required: true
+    },
+    shopName: {
+      type: String,
+      required: true
+    },
+    stripe: {
+      token_type : String,
+      stripe_publishable_key: String,
+      scope: String,
+      livemode: Boolean,
+      stripe_user_id: String,
+      refresh_token: String,
+      access_token: String
+    },
+    shopUrl: { type: String },
+    pageId: { type: String },
+    pageToken: { type: String },
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date }
+  },
+  {
+    timestamps: true
+});
 
 // Pre-save of user to database, hash password if password is modified or new
 ShopSchema.pre('save', function(next) {
@@ -208,131 +208,155 @@ ShopSchema.methods.getStripeToken = function(authorizationCode){
   * PRODUCTS SCHEMA
   */
 
-  const ProductSchema = mongoose.Schema({
-      shop: {
-        type: Schema.Types.ObjectId,
-        ref: 'Shop',
-        index: true
-      },
-      reference: {
-        type: String,
-        unique: true,
-        required: true
-      },
-      title : {
-        type: String,
-        required: true
-      },
-      shortDescription : String,
-      longDescription : String,
-      categories : [String],
-      image: {
-        type: String,
-        required: true
-      }
-    });
-
-  ProductSchema.statics.createProduct = function(data, shop){
-
-
-
-    return new Promise(function(resolve, reject){
-
-      if(!data.reference){
-        reject(new Error("The product has no reference"));
-      }
-
-      //We verify if the product does not already exist
-      Product.findOne({ reference : data.reference}).then(function(product){
-        if(product){
-          reject(new Error("This product already exists"));
-        }
-
-        if(!data.title) reject(new Error("The product has no title"));
-
-        let newProduct = new Product({
-          shop: shop,
-          reference : data.reference,
-          title: data.title,
-          image: data.image
-        });
-
-        if(data.shortDescription) newProduct.shortDescription = data.shortDescription;
-        if(data.longDescription) newProduct.longDescription = data.longDescription;
-        if(data.categories) newProduct.categories = data.longDescription.split(",");
-
-
-        return newProduct.save();
-      }).then(function(product){
-        resolve(product);
-      }).catch(function(error){
-        reject(error);
-      })
-
-    });
-
-
-  }
-
-  /*
-  * VARIANTS SCHEMA
-  */
-
-  const VariantSchema = mongoose.Schema({
-      shop: {
-        type: Schema.Types.ObjectId,
-        ref: 'Shop',
-        index: true
-      },
-      product: {
-        type: Schema.Types.ObjectId,
-        ref: 'Product',
-        index: true
-      },
-      reference: {
-        type: String,
-        unique: true,
-        required: true
-      },
-      images: [String],
-      size: String,
-      color: String,
-      price: Number,
-      stock: Number
+const ProductSchema = mongoose.Schema({
+    shop: {
+      type: Schema.Types.ObjectId,
+      ref: 'Shop',
+      index: true
+    },
+    reference: {
+      type: String,
+      unique: true,
+      required: true
+    },
+    title : {
+      type: String,
+      required: true
+    },
+    shortDescription : String,
+    longDescription : String,
+    categories : [String],
+    images : [String],
+    price: Number
   });
 
-  VariantSchema.statics.createVariant = (data, shop) => {
-
-    return new Promise(function(resolve, reject){
+ProductSchema.statics.createProduct = function(data, shop){
 
 
-      Product.findOne({reference : data.reference}).then((product) => {
-        if(!product){
-          reject(new Error("No productg found for this reference"));
-        }
-        else{
 
-          let newVariant = new Variant({
-            shop: shop,
-            product: product,
-            reference: data.variantReference,
-          });
-          if(data.images) newVariant.images = data.images.split(',');
-          if(data.size) newVariant.size = data.size;
-          if(data.color) newVariant.color = data.color;
-          if(data.price) newVariant.price = data.price;
-          if(data.stock) newVariant.stock = data.stock;
+  return new Promise(function(resolve, reject){
 
-          return newVariant.save();
-        }
-      }).then((variant) => {
-        resolve(variant);
-      }).catch((error) => {
-        reject(error);
+    let finalProduct;
+
+    if(!data.reference){
+      reject(new Error("The product has no reference"));
+    }
+
+    //We verify if the product does not already exist
+    Product.findOne({ reference : data.reference}).then(function(product){
+      if(product){
+        reject(new Error("This product already exists"));
+      }
+
+      if(!data.title) reject(new Error("The product has no title"));
+
+      let newProduct = new Product({
+        shop: shop,
+        reference : data.reference,
+        title: data.title,
+        images: data.images.split(","),
+        price: data.price,
       });
 
+      if(data.shortDescription) newProduct.shortDescription = data.shortDescription;
+      if(data.longDescription) newProduct.longDescription = data.longDescription;
+      if(data.categories) newProduct.categories = data.categories.split(",");
+
+
+      return newProduct.save();
+    }).then(function(product){
+
+      finalProduct = product;
+
+      const sizes = data.sizes.split(",");
+      let variants = [];
+      if(sizes.length > 0){
+        sizes.forEach(function(size) {
+          variants.push(Variant.createVariantSize(product, size));
+        });
+      }
+      else{
+        //TODO: If no size, create a unique size
+        resolve(finalProduct);
+      }
+
+      return Promise.all(variants)
+
+    }).then(function(){
+      resolve(finalProduct);
+    }).catch(function(error){
+      reject(error);
+    })
+
+  });
+
+
+}
+
+/*
+* VARIANTS SCHEMA
+*/
+
+const VariantSchema = mongoose.Schema({
+    product: {
+      type: Schema.Types.ObjectId,
+      ref: 'Product'
+    },
+    type : String,
+    value: String
+});
+
+VariantSchema.statics.createVariantSize = (product, size) => {
+
+  return new Promise(function(resolve, reject){
+
+    let newVariant = new Variant({
+      product: product,
+      type: "size",
+      value: size
     });
-  }
+
+    newVariant.save().then((variant) => {
+      resolve(variant);
+    }).catch((err) => {
+      reject(err);
+    })
+
+  });
+}
+
+VariantSchema.statics.createVariant = (data, shop) => {
+
+  return new Promise(function(resolve, reject){
+
+
+    Product.findOne({reference : data.reference}).then((product) => {
+      if(!product){
+        reject(new Error("No productg found for this reference"));
+      }
+      else{
+
+        let newVariant = new Variant({
+          shop: shop,
+          product: product,
+          reference: data.variantReference,
+        });
+        if(data.images) newVariant.images = data.images.split(',');
+        if(data.size) newVariant.size = data.size;
+        if(data.color) newVariant.color = data.color;
+        if(data.price) newVariant.price = data.price;
+        if(data.stock) newVariant.stock = data.stock;
+
+        return newVariant.save();
+      }
+    }).then((variant) => {
+      resolve(variant);
+    }).catch((error) => {
+      reject(error);
+    });
+
+  });
+}
 
 
 

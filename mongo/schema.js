@@ -115,7 +115,10 @@ export const schema = [`
     categories: [String]
 
     #The main image of the product
-    image: String!
+    images: [String]
+
+    #The product price
+    price: Float
 
   }
   # The cart of a user
@@ -155,23 +158,11 @@ export const schema = [`
     #The Product
     product: Product!
 
-    #The Variant reference
-    reference : String!
+    #The variance type
+    type: String!
 
-    #Images of the Variant
-    images: [String]
-
-    #Size of the variant
-    size: String
-
-    #Color of the variant
-    color: String
-
-    #Price of the variant
-    price: Float
-
-    #Stock available
-    stock: Float
+    #The value of the variant
+    value: String!
   }
 
 

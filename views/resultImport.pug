@@ -21,14 +21,3 @@ html(lang="en")
             tr
               each val, index in product
                 td= val
-      p These are the variants of the produtcs that we imported
-      table(class="table table-striped")
-        thread
-          tr
-            each val, index in variants[0]
-              th= index
-        tbody
-          each variant in variants
-            tr
-              each val, index in variant
-                td= val

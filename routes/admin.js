@@ -20,10 +20,6 @@ exports.importInterface = function(req, res){
 */
 
 exports.uploadCatalog = function(req, res, next){
-  console.log("Files");
-  console.log(req.file);
-  console.log("Fieldnames");
-  console.log(req.body);
 
 
   if(!req.body.shop_id){
@@ -34,37 +30,24 @@ exports.uploadCatalog = function(req, res, next){
       //We found a shop with this id
       if(shop){
         var products = [];
-        var variants = [];
         var stream = fs.createReadStream(req.file.path);
 
-        var csvStream = csv({headers : ["reference", "title", "categories", "shortDescription", "longDescription", "image", "size", "color", "variantReference", "images", "price", "stock"]})
+        var csvStream = csv({headers : ["reference", "title", "categories", "shortDescription", "longDescription", "images", "sizes", "price"]})
               .validate(function(data, next){
                 console.log(data);
-                if(data.variantReference.length > 0){
-                  Variant.createVariant(data, shop).then((variant) => {
-                    variants.push(data);
-                    next(null, variant);
-                  }).catch(function(err){
-                    console.error(err.message);
-                    next(err);
-                  });
-                }
-                else{
-                  Product.createProduct(data, shop).then(function(product){
-                    products.push(data);
-                    next(null, product); //valid if the model does not exist
-                  }).catch(function(err){
-                    console.error(err.message);
-                    next(err);
-                  });
-                }
+                Product.createProduct(data, shop).then(function(product){
+                  products.push(data);
+                  next(null, product); //valid if the model does not exist
+                }).catch(function(err){
+                  console.error(err.message);
+                  next(err);
+                });
              })
             .on("data", function(data){
-                 console.log(data);
             })
             .on("end", function(){
                  console.log("done");
-                 res.render("resultImport", {products : products, variants: variants});
+                 res.render("resultImport", {products : products });
             });
 
         stream.pipe(csvStream);

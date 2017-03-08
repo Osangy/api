@@ -53,7 +53,7 @@ db.once('open', function() {
   logging.info("Connected to the database");
 
   const server = app.listen(app.get('port'),() => logging.info(
-    `Server running on port ${app.get('port')}`
+    `Worker running on port ${app.get('port')}`
   ));
 
   subscribe();

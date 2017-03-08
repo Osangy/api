@@ -41,7 +41,7 @@ const corsOptions = {
 
 const app = express();
 app.set('view engine', 'pug');
-app.set('views', '../views');
+app.set('views', 'views');
 app.use(cors());
 app.use(express.static('files'));
 app.use(morgan('combined'));
@@ -198,7 +198,6 @@ app.use(logging.errorLogger);
 
 
 db.once('open', function() {
-  logging.info("Connected to the database");
 
   app.listen((process.env.PORT || 3001), () => {
     console.log(`App listening on port ${(process.env.PORT || 3001)}`);

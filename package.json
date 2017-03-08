@@ -7,6 +7,7 @@
     "start": "node ${SCRIPT:-index.js}",
     "start-socket": "node indexSocket.js",
     "monitor": "nodemon ${SCRIPT:-index.js}",
+    "monitor-all": "concurrently --kill-others \"nodemon index.js\" \"nodemon indexWorker.js\" \"nodemon indexSocket.js\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -59,5 +60,8 @@
     "stripe": "^4.15.0",
     "subscriptions-transport-ws": "^0.5.2",
     "winston": "^2.3.1"
+  },
+  "devDependencies": {
+    "concurrently": "^3.4.0"
   }
 }

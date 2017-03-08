@@ -47,7 +47,6 @@ db.on('error', console.error.bind(console, 'connection error:'));
 //
 //
 db.once('open', function() {
-  logging.info("Connected to the database");
 
   const WS_PORT = 8080;
 
