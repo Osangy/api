@@ -89,6 +89,7 @@ function manageMessage(messageObject, shop){
 
     if(messageObject.message.is_echo){
       Message.createFromFacebookEcho(messageObject, shop).then(function(message){
+        pubsub.publish('messageAdded', message);
         resolve(message);
       }).catch(function(err){
         reject(err);
@@ -310,33 +311,37 @@ function sendAction(shop, recipientId, action = "mark_seen"){
 
 function sendReceipt(order){
 
-  const charge = JSON.parse(order.charge);
-  const payment_method = `${charge.source.brand} ${charge.source.last4}`;
+  return new Promise((resolve, reject) => {
+    const charge = JSON.parse(order.charge);
+    const payment_method = `${charge.source.brand} ${charge.source.last4}`;
 
-  const messageData = {
-    recipient: {
-      id: order.user.facebookId
-    },
-    message: {
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "receipt",
-          recipient_name: `${order.user.firstName} ${order.user.lastName}`,
-          order_number: order._id,
-          currency: "EUR",
-          payment_method: payment_method,
-          timestamp: moment(order.chargeDate).unix(),
-          summary: {
-            total_cost: order.price
+    order.getSelectionsForFacebook().then((elements) => {
+
+      const messageData = {
+        recipient: {
+          id: order.user.facebookId
+        },
+        message: {
+          attachment: {
+            type: "template",
+            payload: {
+              template_type: "receipt",
+              recipient_name: `${order.user.firstName} ${order.user.lastName}`,
+              order_number: order._id,
+              currency: "EUR",
+              payment_method: payment_method,
+              elements : elements,
+              timestamp: moment(order.chargeDate).unix(),
+              summary: {
+                total_cost: order.price
+              }
+            }
           }
         }
-      }
-    }
-  };
+      };
 
-  return new Promise((resolve, reject) => {
-    send(messageData, order.shop.pageToken).then((parsedBody) => {
+      return send(messageData, order.shop.pageToken);
+    }).then((parsedBody) => {
       logging.info(`Receipt sent for order ${order._id}`);
       resolve(parsedBody);
     }).catch((err) => {

@@ -31,7 +31,6 @@ const jwtOptions = {
 
 // Setting up JWT login strategy
 const jwtLogin = new JwtStrategy(jwtOptions, function(payload, done) {
-  console.log(payload);
   Shop.findById(payload._id, function(err, shop) {
     if (err) { return done(err, false); }
 

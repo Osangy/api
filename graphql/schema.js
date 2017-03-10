@@ -19,7 +19,7 @@ const rootSchema = [`
 
   input SelectionInput {
     # The product
-    product : ID!
+    variant : ID!
 
     #The quantity
     quantity: Float!
@@ -62,7 +62,7 @@ const rootSchema = [`
     sendImage(url: String!, facebookId: String!): Message
 
     # Add a product to the cart
-    addCart(userId: String!, productId: String!): Cart
+    addCart(userId: String!, variantId: String!): Cart
 
     # Update the cart
     updateCart(userId: ID!, selections: [SelectionInput]!): Cart
@@ -85,8 +85,11 @@ const rootSchema = [`
   }
 
   type Subscription {
-    # Subscription fires on every comment added
-    messageAdded(conversationId: ID!): Message
+    # Subscription fires on new message
+    messageAdded(shopId: ID!): Message
+
+    # Subscription fires when cart has been modified
+    cartModified(shopId: ID!): Cart
   }
 
   schema {
@@ -100,6 +103,7 @@ const rootSchema = [`
 const rootResolvers = {
   Query: {
     messages(root, {limit, conversationId, offset}, context) {
+      logging.info("Querying Messages");
       const limitValidator = (limit > 100) ? 100 : limit;
       let messsagesToReturn;
       const offsetDate = (moment.unix(offset)).toDate();
@@ -123,29 +127,35 @@ const rootResolvers = {
         ))
     },
     conversation(root, { limit }, context){
+      logging.info("Querying Conversations");
       const limitValidator = (limit > 20) ? 10 : limit;
       return Conversation.find({ shop: context.user._id}).limit(limit);
     },
     user(root, { facebookId }, context){
+      logging.info("Querying User");
       return User.findOne({ facebook_id: facebookId });
     },
     products(root, { limit }, context){
+      logging.info("Querying products");
       const limitValidator = (limit > 20) ? 20 : limit;
       return Product.find({ shop: context.user._id}).limit(limit);
     },
     variants(root, { product }, context){
+      logging.info("Querying Variants");
       return Variant.find({ product: product}).limit(20);
     },
     cart(root, { userId }, context){
+      logging.info("Querying Cart");
       return Cart.findOne({user: userId});
     },
     orders(root, {limit}, context){
+      logging.info("Querying Orders");
       return Order.find({shop : context.user}).sort({createdAt : -1}).limit(limit);
     }
   },
   Mutation : {
     sendMessage(root, {text, facebookId}, context){
-      logging.info(`An agent send : ${text} / to facebook Id : ${facebookId}`);
+      logging.info(`Mutation : An agent send : ${text} / to facebook Id : ${facebookId}`);
       return Promise.resolve()
         .then(() => (
            facebook.sendMessage(context.user, facebookId, text)
@@ -155,6 +165,7 @@ const rootResolvers = {
         ));
     },
     sendImage(root, {url, facebookId}, context){
+      logging.info("Mutation : Send an Image");
       return Promise.resolve()
         .then(() => (
            facebook.sendImage(context.user, facebookId, url)
@@ -163,16 +174,18 @@ const rootResolvers = {
           message
         ));
     },
-    addCart(root, {userId, productId}, context){
+    addCart(root, {userId, variantId}, context){
+      logging.info("Mutation : Add Cart");
       return Promise.resolve()
         .then(() => (
-           Cart.addProduct(productId, context.user, userId)
+           Cart.addProduct(variantId, context.user, userId)
         ))
         .then((cart) => (
           cart
         ));
     },
     updateCart(root, {userId, selections}, context){
+      logging.info("Mutation : Update Cart");
       return Promise.resolve()
         .then(() => (
            Cart.updateCart(selections, context.user, userId)
@@ -182,6 +195,7 @@ const rootResolvers = {
         ));
     },
     stripeConnect(root, {authorizationCode}, context){
+      logging.info("Mutation : Stripe Connect");
       return new Promise((resolve, reject) => {
 
         context.user.getStripeToken(authorizationCode).then((shop) => {
@@ -200,6 +214,7 @@ const rootResolvers = {
       });
     },
     payCart(root, { cartId }, context){
+      logging.info("Mutation : Pay Cart");
       return Promise.resolve()
         .then(() => (
            shop.payCart(context.user, cartId)
@@ -248,6 +263,9 @@ const rootResolvers = {
   Subscription: {
     messageAdded(message) {
       return message;
+    },
+    cartModified(cart) {
+      return cart;
     },
   },
 };

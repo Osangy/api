@@ -64,12 +64,7 @@ db.once('open', function() {
   startSubscriptionServer(websocketServer);
 
 });
-//
-//
-//
-//
-//
-//
+
 //Function that start to listen to graphql subscriptions
 function startSubscriptionServer(server){
   // eslint-disable-next-line
@@ -81,9 +76,13 @@ function startSubscriptionServer(server){
       },
       onSubscribe: (msg, params) => {
         logging.info("Sub");
+        logging.info(params);
         return Object.assign({}, params, {
           context: {}
         });
+      },
+      onUnsubscribe : () => {
+        logging.info("UNSUBSCRIBE");
       }
     },{
       server: server,

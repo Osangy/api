@@ -52,6 +52,9 @@ export const schema = [`
     #The coordinates if the type of the message is location
     coordinates : JSON
 
+    #Id of the conversation
+    conversation: Conversation
+
   }
 
   # A user
@@ -142,13 +145,13 @@ export const schema = [`
   # The product seelcted by a user in his cart and all the infos attached to it
   type Selection {
     # The product
-    product : Product!
+    variant : Variant!
 
     #The quantity
     quantity: Float!
 
     #Total price
-    totalPriceProduct: Float
+    totalPriceVariant: Float
   }
 
   #The Variants of a product
@@ -239,6 +242,9 @@ export const resolvers = {
     recipient({ recipient }, _, context) {
       return User.findOne({ _id : recipient});
     },
+    conversation({ conversation }, _, context) {
+      return Conversation.findById(conversation);
+    }
   },
   Conversation: {
     user({user}, _, context) {
@@ -249,6 +255,7 @@ export const resolvers = {
     }
   },
   Cart: {
+    id: property("_id"),
     user({user}, _, context) {
       return User.findOne({_id : user});
     },
@@ -257,8 +264,8 @@ export const resolvers = {
     }
   },
   Selection: {
-    product({product}, _, context) {
-      return Product.findById(product);
+    variant({variant}, _, context) {
+      return Variant.findById(variant);
     }
   },
   Variant: {

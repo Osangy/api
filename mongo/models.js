@@ -8,6 +8,7 @@ import background from '../lib/background';
 import rp from 'request-promise';
 import config from 'config';
 import autoIncrement from 'mongoose-auto-increment';
+import { pubsub } from '../graphql/subscriptions';
 
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 Promise.promisifyAll(require("mongoose"));
@@ -173,7 +174,7 @@ ShopSchema.methods.getStripeToken = function(authorizationCode){
         method: 'POST',
         uri: 'https://connect.stripe.com/oauth/token',
         body: {
-            client_secret: config.STRIPE_TEST_KEY,
+            client_secret: config.STRIPE_TEST_SECRET_KEY,
             code: authorizationCode,
             grant_type: "authorization_code",
             client_id: config.STRIPE_DEV_CLIENT_ID
@@ -216,7 +217,6 @@ const ProductSchema = mongoose.Schema({
     },
     reference: {
       type: String,
-      unique: true,
       required: true
     },
     title : {
@@ -243,7 +243,7 @@ ProductSchema.statics.createProduct = function(data, shop){
     }
 
     //We verify if the product does not already exist
-    Product.findOne({ reference : data.reference}).then(function(product){
+    Product.findOne({ reference : data.reference, shop : shop}).then(function(product){
       if(product){
         reject(new Error("This product already exists"));
       }
@@ -393,6 +393,11 @@ const MessageSchema = mongoose.Schema({
       type: Schema.Types.ObjectId,
       ref: 'Conversation',
       index: true
+    },
+    shop: {
+      type: Schema.Types.ObjectId,
+      ref: 'Shop',
+      index: true
     }
   },
   {
@@ -446,7 +451,8 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
         isEcho : (messageObject.message.is_echo) ? true : false,
         conversation : conversationObject,
         timestamp : moment(messageObject.timestamp),
-        mid: messageObject.message.mid
+        mid: messageObject.message.mid,
+        shop: shop
       });
 
       //Set the right user kind
@@ -517,7 +523,8 @@ MessageSchema.statics.createFromShopToFacebook = (type, content, userFacebookId,
         conversation : conversationObject,
         recipient: user,
         type: type,
-        timestamp: moment()
+        timestamp: moment(),
+        shop: shop
       });
 
       switch (type) {
@@ -645,12 +652,12 @@ const CartSchema = mongoose.Schema({
       index: true
     },
     selections : [{
-      product: {
+      variant: {
         type: Schema.Types.ObjectId,
-        ref: 'Product'
+        ref: 'Variant'
       },
       quantity: Number,
-      totalPriceProduct: Number
+      totalPriceVariant: Number
     }],
     totalPrice: Number,
     nbProducts: Number,
@@ -704,23 +711,23 @@ CartSchema.statics.createFakeCart = function(shop, userId, price = 100){
 
 }
 
-CartSchema.statics.addProduct = function(productId, shop, userId){
+CartSchema.statics.addProduct = function(variantId, shop, userId){
 
 
   return new Promise(function(resolve, reject){
     let user;
-    let product;
+    let variant;
 
     User.findById(userId).then(function(userFound){
       if(!userFound) reject(new Error("No user with this id"))
 
       user = userFound;
 
-      return Product.findById(productId);
-    }).then(function(productFound){
-      if(!productFound) reject(new Error("No product with this id"))
+      return Variant.findById(variantId).populate('product');
+    }).then(function(variantFound){
+      if(!variantFound) reject(new Error("No variant with this id"))
 
-      product = productFound
+      variant = variantFound
       return Cart.findOne({shop: shop, user: user});
     }).then(function(cart){
 
@@ -729,19 +736,19 @@ CartSchema.statics.addProduct = function(productId, shop, userId){
 
         let foundOne = false;
         _.forEach(cart.selections, function(value) {
-            if(product.equals(value.product)){
+            if(variant.equals(value.variant)){
               foundOne = true;
               value.quantity++;
-              value.totalPriceProduct += product.price;
+              value.totalPriceVariant += variant.product.price;
               return false;
             }
         });
 
         if(!foundOne){
           cart.selections.push({
-            product: product,
+            variant: variant,
             quantity: 1,
-            totalPriceProduct: product.price
+            totalPriceVariant: variant.product.price
           });
         }
 
@@ -761,9 +768,9 @@ CartSchema.statics.addProduct = function(productId, shop, userId){
         });
 
         newCart.selections.push({
-          product: product,
+          variant: variant,
           quantity: 1,
-          totalPriceProduct: product.price
+          totalPriceVariant: variant.product.price
         });
 
         newCart.cleanSelections();
@@ -792,7 +799,7 @@ CartSchema.statics.updateCart = function(selections, shop, userId){
 
   return new Promise(function(resolve, reject){
     let user;
-    let product;
+    let variant;
 
     User.findById(userId).then(function(userFound){
       if(!userFound) reject(new Error("No user with this id"))
@@ -833,12 +840,12 @@ CartSchema.methods.updateSelection = function(selection){
 
   let productPrice = 0;
   const index = _.findIndex(this.selections, (o) => {
-    return o.product.equals(selection.product)
+    return o.variant.equals(selection.variant)
   });
 
-  productPrice = this.selections[index].totalPriceProduct / this.selections[index].quantity
+  productPrice = this.selections[index].totalPriceVariant / this.selections[index].quantity
   this.selections[index].quantity = selection.quantity;
-  this.selections[index].totalPriceProduct = selection.quantity * productPrice
+  this.selections[index].totalPriceVariant = selection.quantity * productPrice
 }
 
 CartSchema.methods.cleanSelections = function(){
@@ -853,7 +860,7 @@ CartSchema.methods.cleanSelections = function(){
   let totalPrice = 0;
   _.forEach(this.selections, (selection) => {
     nbProducts += selection.quantity
-    totalPrice += selection.totalPriceProduct
+    totalPrice += selection.totalPriceVariant
   })
 
   this.totalPrice = totalPrice;
@@ -868,6 +875,7 @@ CartSchema.methods.totalClean = function(){
     this.nbProducts = 0;
     this.chargeId = null;
     this.chargeDate = null;
+    this.charge = null;
     this.isPaid = false;
     this.save().then((cart) => {
       resolve(cart);
@@ -905,6 +913,18 @@ const OrderSchema = mongoose.Schema({
       required: true
     },
     nbProducts: Number,
+    variants : [{
+      type: Schema.Types.ObjectId,
+      ref: 'Variant'
+    }],
+    selections : [{
+      variant: {
+        type: Schema.Types.ObjectId,
+        ref: 'Variant'
+      },
+      quantity: Number,
+      totalPriceVariant: Number
+    }],
     chargeId: String,
     chargeDate: Date,
     charge: String,
@@ -933,12 +953,18 @@ OrderSchema.statics.createFromCart = function(cartId){
     Cart.findById(cartId).populate("shop user"). then((cart) => {
       if(!cart) reject(new Error("There is no cart with this id"));
 
+      let variants = [];
+      cart.selections.forEach((selection) => {
+        variants.push(selection.variant)
+      });
+
       oldCart = cart;
       //Create
       let newOrder = new Order({
         shop: cart.shop,
         user: cart.user,
         price: cart.totalPrice,
+        selections: cart.selections,
         nbProducts: cart.nbProducts,
         chargeId: cart.chargeId,
         chargeDate: cart.chargeDate,
@@ -952,6 +978,7 @@ OrderSchema.statics.createFromCart = function(cartId){
 
       return oldCart.totalClean();
     }).then((cart) => {
+      pubsub.publish('cartModified', cart);
       resolve(finalOrder);
     }).catch((err) => {
       reject(err);
@@ -1006,6 +1033,54 @@ OrderSchema.methods.updateStatus = function(newStatus){
     }).catch((err) => {
       reject(err);
     })
+  });
+
+}
+
+OrderSchema.methods.getSelectionsForFacebook = function(){
+
+  let elements = [];
+  let order = this;
+  return new Promise((resolve, reject) => {
+
+    let variantsIds = [];
+    order.selections.forEach((selection) => {
+      variantsIds.push(selection.variant);
+    })
+
+    Variant.find({
+      '_id' : { $in : variantsIds}
+    }).populate('product').then((variants) => {
+
+      order.selections.forEach((selection) => {
+
+        const index = _.findIndex(variants, function(o) {
+          return selection.variant.equals(o._id); }
+        );
+        let variant = variants[index];
+
+        if(variant){
+          let elementObject = {
+            'title' : variant.product.title,
+            'subtitle' : variant.product.shortDescription,
+            'quantity' : selection.quantity,
+            'price' : variant.product.price,
+            'currency' : 'EUR',
+            'image_url' : variant.product.images[0]
+          };
+
+          elements.push(elementObject)
+
+        }
+
+        });
+
+
+      resolve(elements);
+    }).catch((err) => {
+      reject(err);
+    })
+
   });
 
 }

@@ -177,6 +177,11 @@ apiRoutes.get('/test', function(req, res){
 
 apiRoutes.use('/graphql', bodyParser.json(), graphqlExpress(request => ({
   schema: schema,
+  formatError: error => ({
+    message: error.message,
+    locations: error.locations,
+    stack: error.stack
+  }),
   context: {
     pageId: config.page_id,
     user: request.user

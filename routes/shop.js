@@ -21,8 +21,6 @@ exports.paySimple = function(req, res){
   Cart.findById(cartId).then((cart) => {
     if(!cart) res.send("Sorry but we did not find any cart");
 
-    logging.info("Found a cart "+cart.totalPrice);
-
     res.render('pay', {
       cartId : cartId,
       price: cart.totalPrice
@@ -54,10 +52,6 @@ exports.validatePayment = function(req, res){
     }
 
   }).then((charge) => {
-
-    logging.info("Just charged :");
-    logging.info(charge);
-
 
     //Once charged, we update the cart
     nowCart.isPaid = true;
