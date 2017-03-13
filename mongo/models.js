@@ -9,6 +9,7 @@ import rp from 'request-promise';
 import config from 'config';
 import autoIncrement from 'mongoose-auto-increment';
 import { pubsub } from '../graphql/subscriptions';
+import randtoken from 'rand-token';
 
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 Promise.promisifyAll(require("mongoose"));
@@ -667,7 +668,8 @@ const CartSchema = mongoose.Schema({
     isPaid: {
       type: Boolean,
       default: false
-    }
+    },
+    ask_payment_token : String
   },
   {
     timestamps: true

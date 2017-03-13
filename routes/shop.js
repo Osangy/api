@@ -16,15 +16,16 @@ Promise.promisifyAll(require("mongoose"));
 */
 
 exports.paySimple = function(req, res){
-  const cartId = req.params.cartId;
+  const cartToken = req.params.cartToken;
 
-  Cart.findById(cartId).then((cart) => {
-    if(!cart) res.send("Sorry but we did not find any cart");
-
-    res.render('pay', {
-      cartId : cartId,
-      price: cart.totalPrice
-    });
+  Cart.findOne({ask_payment_token : cartToken}).then((cart) => {
+    if(!cart) res.send("Sorry but we did not find any cart. You probably already paid for it !");
+    else{
+      res.render('pay', {
+        cartToken : cartToken,
+        price: cart.totalPrice
+      });
+    }
   }).catch((err) => {
     res.send(err.message);
   })
@@ -37,18 +38,20 @@ exports.validatePayment = function(req, res){
 
 
   const token = req.body.token; // Using Express
-  const cartId = req.body.cartId;
+  const cartToken = req.body.cartToken;
   let nowCart;
 
+  console.log(cartToken);
 
-  Cart.findById(cartId).populate('shop user').then((cart) => {
+  Cart.findOne({ask_payment_token : cartToken}).populate('shop user').then((cart) => {
 
     if(!cart){
       res.send("Error finding your cart. Your payment has been cancelled");
     }
     else{
       nowCart = cart;
-      return stripe.chargeForShop(cart.shop, 100, token, `Payment for cart ${cart._id}`);
+      console.log(cart.totalPrice);
+      return stripe.chargeForShop(cart.shop, cart.totalPrice, token, `Payment for cart ${cart._id}`);
     }
 
   }).then((charge) => {
@@ -58,12 +61,13 @@ exports.validatePayment = function(req, res){
     nowCart.chargeId = charge.id;
     nowCart.chargeDate = moment();
     nowCart.charge = JSON.stringify(charge);
+    nowCart.ask_payment_token = null;
     return nowCart.save();
 
 
   }).then((cart) => {
 
-    return facebook.sendMessage(cart.shop, cart.user.facebookId, "Merci, nous avons bien reçu votre paiement");
+    return facebook.sendMessage(cart.shop, cart.user.facebookId, `Merci, nous avons bien reçu votre paiement de ${cart.totalPrice}€`);
   }).then(() => {
     //Queue the fact to send a message + create a command + update the charge
     background.queuePaidCart(nowCart._id);

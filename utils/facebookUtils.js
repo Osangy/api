@@ -255,6 +255,8 @@ function sendImage(shop, recipientId, imageUrl){
 
 function sendButtonForPayCart(shop, recipientId, cart){
 
+  const apiPayUrl = `${config.serverURL}shop/pay/${cart.ask_payment_token}`;
+
   const messageData = {
     recipient: {
       id: recipientId
@@ -268,10 +270,10 @@ function sendButtonForPayCart(shop, recipientId, cart){
           buttons: [
             {
               type: "web_url",
-              url: `https://cproject-api.ngrok.io/shop/pay/${cart._id}`,
+              url: apiPayUrl,
               title: "Régler mon panier",
               messenger_extensions : true,
-              fallback_url : `https://cproject-api.ngrok.io/shop/pay/${cart._id}`
+              fallback_url : apiPayUrl
             }
           ]
         }

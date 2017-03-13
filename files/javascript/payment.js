@@ -63,7 +63,7 @@ function payWithToken(token, cartId){
 
   axios.post('/shop/validatePayment', {
     token: token,
-    cartId: cartId
+    cartToken: cartId
   })
   .then(function (response) {
     console.log(response);
@@ -151,7 +151,7 @@ function mountCard(){
         setErrorOutcome(result.error);
       } else {
         // Send the token to your server
-        payWithToken(result.token.id, document.getElementsByName("cartId")[0].value);
+        payWithToken(result.token.id, document.getElementsByName("cartToken")[0].value);
       }
     });
   });

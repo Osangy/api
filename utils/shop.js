@@ -5,6 +5,7 @@ import logging from '../lib/logging';
 import rp from 'request-promise';
 import facebook from './facebookUtils';
 import stripe from './stripe';
+import randtoken from 'rand-token';
 
 Promise.promisifyAll(require("mongoose"));
 
@@ -17,6 +18,12 @@ function payCart(shop, cartId){
     Cart.findById(cartId).populate('user').then((cart) => {
 
       if(!cart) reject(new Error("No cart with this id"));
+
+      //Generate a token for this payment (avoid to make a cart be paid 2 times)
+      cart.ask_payment_token = randtoken.generate(16);
+      return cart.save();
+
+    }).then((cart) => {
 
       return facebook.sendButtonForPayCart(shop, cart.user.facebookId, cart);
     }).then((parsedBody) => {
