@@ -10,6 +10,7 @@ import config from 'config';
 import autoIncrement from 'mongoose-auto-increment';
 import { pubsub } from '../graphql/subscriptions';
 import randtoken from 'rand-token';
+import analytics from '../lib/analytics';
 
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 Promise.promisifyAll(require("mongoose"));
@@ -405,6 +406,12 @@ const MessageSchema = mongoose.Schema({
     timestamps: true
   });
 
+MessageSchema.pre('save', function (next) {
+    if(this.isNew){
+      analytics.trackMessage(this);
+    }
+    next();
+});
 
 //After a message save we increment the nb of message of the conversation
 MessageSchema.post('save', function(message) {
@@ -944,6 +951,14 @@ const OrderSchema = mongoose.Schema({
 autoIncrement.initialize(mongoose);
 OrderSchema.plugin(autoIncrement.plugin, 'Order');
 
+
+//Analytics happens here
+OrderSchema.pre('save', function (next) {
+    if(this.isNew){
+      analytics.trackSellShop(this);
+    }
+    next();
+});
 
 OrderSchema.statics.createFromCart = function(cartId){
 
