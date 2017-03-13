@@ -978,6 +978,7 @@ OrderSchema.statics.createFromCart = function(cartId){
 
       return oldCart.totalClean();
     }).then((cart) => {
+      logging.info("CART MODIFIED");
       pubsub.publish('cartModified', cart);
       resolve(finalOrder);
     }).catch((err) => {
@@ -1058,13 +1059,14 @@ OrderSchema.methods.getSelectionsForFacebook = function(){
           return selection.variant.equals(o._id); }
         );
         let variant = variants[index];
+        const titleVariant = `${variant.product.title} - ${_.upperFirst(variant.type)} : ${variant.value}`
 
         if(variant){
           let elementObject = {
-            'title' : variant.product.title,
+            'title' : titleVariant,
             'subtitle' : variant.product.shortDescription,
             'quantity' : selection.quantity,
-            'price' : variant.product.price,
+            'price' : selection.totalPriceVariant,
             'currency' : 'EUR',
             'image_url' : variant.product.images[0]
           };
