@@ -67,7 +67,7 @@ exports.validatePayment = function(req, res){
 
   }).then((cart) => {
 
-    return facebook.sendMessage(cart.shop, cart.user.facebookId, `Merci, nous avons bien reçu votre paiement de ${cart.totalPrice}€`);
+    return facebook.sendMessage(cart.shop, cart.user.facebookId, `Merci, nous avons bien reçu votre paiement de ${cart.totalPrice}€`, "payConfirmation");
   }).then(() => {
     //Queue the fact to send a message + create a command + update the charge
     background.queuePaidCart(nowCart._id);

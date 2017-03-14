@@ -21,6 +21,7 @@ export const schema = [`
     location
   }
 
+
   # A message sent to or by the page
   type Message {
     id : ID!
@@ -54,6 +55,9 @@ export const schema = [`
 
     #Id of the conversation
     conversation: Conversation
+
+    #Attachments
+    attachments: [JSON]
 
   }
 

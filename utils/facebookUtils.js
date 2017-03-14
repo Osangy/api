@@ -154,10 +154,10 @@ exports.getFacebookUserInfos = function(shop, userId){
 * Send a message to a user
 */
 
-function sendMessage(shop, recipientId, text){
+function sendMessage(shop, recipientId, text, metadata){
 
 
-  const messageData = {
+  let messageData = {
     recipient: {
       id: recipientId
     },
@@ -165,6 +165,8 @@ function sendMessage(shop, recipientId, text){
       text: text
     }
   };
+
+  if(metadata) messageData.metadata = metadata;
 
   return new Promise(function(resolve, reject){
 
@@ -187,6 +189,7 @@ function sendMessage(shop, recipientId, text){
     }).then((parsedBody) => {
 
       newMessage.mid = parsedBody.message_id;
+      newMessage.echoType = "standard";
       return newMessage.save();
 
     }).then((message) => {
@@ -237,6 +240,7 @@ function sendImage(shop, recipientId, imageUrl){
     }).then((parsedBody) => {
 
       newMessage.mid = parsedBody.message_id;
+      newMessage.echoType = "standard";
       return newMessage.save();
 
     }).then((message) => {
@@ -262,6 +266,7 @@ function sendButtonForPayCart(shop, recipientId, cart){
       id: recipientId
     },
     message: {
+      metadata : "askPayCart",
       attachment: {
         type: "template",
         payload: {
@@ -324,6 +329,7 @@ function sendReceipt(order){
           id: order.user.facebookId
         },
         message: {
+          metadata : "receipt",
           attachment: {
             type: "template",
             payload: {

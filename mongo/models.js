@@ -21,22 +21,22 @@ let Schema = mongoose.Schema
 
 
 
-  /*
-  * USER SCHEMA
-  */
+/*
+* USER SCHEMA
+*/
 
-  const UserSchema = mongoose.Schema({
-      facebookId: String,
-      firstName: String,
-      lastName: String,
-      profilePic: String,
-      locale: String,
-      timezone: Number,
-      gender: String,
-      lastUpdate: Date
-  }, {
-    timestamps: true
-  });
+const UserSchema = mongoose.Schema({
+    facebookId: String,
+    firstName: String,
+    lastName: String,
+    profilePic: String,
+    locale: String,
+    timezone: Number,
+    gender: String,
+    lastUpdate: Date
+}, {
+  timestamps: true
+});
 
 
   /*
@@ -366,6 +366,22 @@ VariantSchema.statics.createVariant = (data, shop) => {
   * MESSAGE SCHEMA
   */
 
+const buttonSchema = mongoose.Schema({
+  type : String,
+  url: String,
+  title: String
+});
+
+const attachmentSchema = mongoose.Schema({
+  type : String,
+  payload : {
+    url : String,
+    template_type : String,
+    text : String,
+    buttons : [buttonSchema]
+  }
+});
+
 const MessageSchema = mongoose.Schema({
     mid: {
       type: String,
@@ -400,7 +416,12 @@ const MessageSchema = mongoose.Schema({
       type: Schema.Types.ObjectId,
       ref: 'Shop',
       index: true
-    }
+    },
+    echoType: {
+        type: String,
+        enum: ['standard', 'askPayCart', 'payConfirmation', 'receipt', 'orderStatus']
+    },
+    attachments : [attachmentSchema]
   },
   {
     timestamps: true
@@ -415,7 +436,7 @@ MessageSchema.pre('save', function (next) {
 
 //After a message save we increment the nb of message of the conversation
 MessageSchema.post('save', function(message) {
-    Conversation.findById(message.conversation._id).then((conversation) => {
+    Conversation.findById(message.conversation).then((conversation) => {
       conversation.nbMessages++;
       if(!message.isEcho){
         conversation.nbUnreadMessages++;
@@ -472,26 +493,15 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
       }
 
       if(messageObject.message.text){
-        message.type = 'text';
         message.text = messageObject.message.text;
       }
-      else if(messageObject.message.attachments){
-        //TODO: Manage Multiple Attachments
-        switch (messageObject.message.attachments[0].type) {
-          case 'audio':
-          case "image":
-          case "video":
-          case "file":
-            message.type = messageObject.message.attachments[0].type;
-            message.fileUrl = messageObject.message.attachments[0].payload.url;
-            background.queueFile(message.fileUrl, message.mid);
-            break;
-          case "location":
-            message.type = messageObject.message.attachments[0].type;
-            message.coordinates.lat = messageObject.message.attachments[0].payload.coordinates.lat
-            message.coordinates.long = messageObject.message.attachments[0].payload.coordinates.long
-          default:
-        }
+
+      if(messageObject.message.attachments){
+        message.manageAttachments(messageObject.message.attachments);
+      }
+
+      if(messageObject.message.metadata){
+        message.echoType = messageObject.message.metadata;
       }
 
       //TODO : increment message counter and date in conversation
@@ -530,7 +540,6 @@ MessageSchema.statics.createFromShopToFacebook = (type, content, userFacebookId,
         isEcho : true,
         conversation : conversationObject,
         recipient: user,
-        type: type,
         timestamp: moment(),
         shop: shop
       });
@@ -540,7 +549,13 @@ MessageSchema.statics.createFromShopToFacebook = (type, content, userFacebookId,
           message.text = content;
           break;
         case 'image':
-          message.fileUrl = content
+          let newAttachment = {
+            type : "image",
+            payload : {
+              url : content
+            }
+          };
+          message.attachments = [newAttachment];
         default:
 
       }
@@ -577,6 +592,58 @@ MessageSchema.statics.createFromFacebookEcho = (messageObject, shop) => {
       reject(err);
     })
 
+  });
+
+}
+
+MessageSchema.methods.manageAttachments = function(attachments){
+
+  this.attachments = [];
+  let position = 0;
+  attachments.forEach((attachment) => {
+
+    let newAttachment = {};
+    //TODO: Manage Multiple Attachments
+    switch (attachment.type) {
+      case 'audio':
+      case "image":
+      case "video":
+      case "file":
+        newAttachment.type = attachment.type;
+        newAttachment.payload = {
+          url : attachment.payload.url
+        };
+        background.queueFile(newAttachment.payload.url, this.mid, position);
+        break;
+      case "location":
+        message.type = messageObject.message.attachments[0].type;
+        message.coordinates.lat = messageObject.message.attachments[0].payload.coordinates.lat
+        message.coordinates.long = messageObject.message.attachments[0].payload.coordinates.long
+        break;
+      case "template":
+        newAttachment.type = attachment.type;
+        let payload = {};
+        switch (attachment.payload.template_type) {
+          case "button":
+            payload.template_type = attachment.payload.template_type;
+            payload.text = attachment.payload.text;
+            payload.buttons = [];
+            attachment.payload.buttons.forEach((button) => {
+
+              if(button.type === "web_url"){
+                payload.buttons.push(button)
+              }
+
+            })
+            break;
+          default:
+
+        }
+        newAttachment.payload = payload;
+      default:
+    }
+    this.attachments.push(newAttachment);
+    position++;
   });
 
 }
@@ -1041,7 +1108,7 @@ OrderSchema.methods.updateStatus = function(newStatus){
       finalOrder = order;
 
       if(order.status === OrderStatus.SENT){
-        return sendMessage(order.shop, order.user.facebookId, `Votre commande #${order._id} vient d'être envoyée`);
+        return sendMessage(order.shop, order.user.facebookId, `Votre commande #${order._id} vient d'être envoyée`, "orderStatus");
       }
       else{
         resolve(finalOrder)

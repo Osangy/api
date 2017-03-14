@@ -97,7 +97,7 @@ function subscribe () {
         //TODO : update the file url of the message
         Message.findOne({mid : message.mid}).then((messageObject) => {
           if(messageObject){
-            messageObject.fileUrl = publicUrl
+            messageObject.attachments[message.position].payload.url = publicUrl
             messageObject.save().then((message) => {
               logging.info("message updated with new url");
             })
