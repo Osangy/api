@@ -30,6 +30,11 @@ const rootSchema = [`
     errors: [String]
   }
 
+  type PurchasesInfo {
+    nbOrders : Float!
+    lastOrder : Order
+  }
+
   type Query {
     # A list of message
     messages(limit:Int!, conversationId: String!, offset:Float!) : [Message]
@@ -50,7 +55,10 @@ const rootSchema = [`
     cart(userId: ID!): Cart
 
     # The orders of a shop
-    orders(limit : Int = 30): [Order]
+    orders(limit : Int = 30, userId: ID): [Order]
+
+    # The infos about all the purchases that the customer did
+    purchasesInfos(userId: ID!) : PurchasesInfo
   }
 
   type Mutation {
@@ -148,9 +156,33 @@ const rootResolvers = {
       logging.info("Querying Cart");
       return Cart.findOne({user: userId});
     },
-    orders(root, {limit}, context){
+    orders(root, {limit, userId}, context){
       logging.info("Querying Orders");
-      return Order.find({shop : context.user}).sort({createdAt : -1}).limit(limit);
+      if(userId){
+        return Order.find({shop : context.user, user : userId}).sort({createdAt : -1}).limit(limit);
+      }
+      else{
+        return Order.find({shop : context.user}).sort({createdAt : -1}).limit(limit);
+      }
+    },
+    purchasesInfos(root, {userId}, context){
+      logging.info("Querying Purchases Infos");
+      let ordersCount;
+      return Promise.resolve()
+        .then(() => (
+            Order.find({shop : context.user, user : userId}).count()
+        ))
+        .then((count) => {
+          ordersCount = count;
+          return Order.find({shop : context.user, user : userId}).sort({createdAt : -1}).limit(1);
+        })
+        .then((orders) => {
+          let lastOrder = orders.length > 0 ? orders[0] : null;
+          return {
+            nbOrders : ordersCount,
+            lastOrder : lastOrder
+          }
+        });
     }
   },
   Mutation : {
