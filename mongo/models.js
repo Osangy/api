@@ -19,7 +19,15 @@ Promise.promisifyAll(require("mongoose"));
 let Schema = mongoose.Schema
   , ObjectId = Schema.ObjectId;
 
-
+const addressSchema = mongoose.Schema({
+  streetNumber : String,
+  route: String,
+  locality: String,
+  region : String,
+  country: String,
+  postalCode : String,
+  googleId : String
+});
 
 /*
 * USER SCHEMA
@@ -33,6 +41,7 @@ const UserSchema = mongoose.Schema({
     locale: String,
     timezone: Number,
     gender: String,
+    lastShippingAddress : addressSchema,
     lastUpdate: Date
 }, {
   timestamps: true
@@ -739,6 +748,7 @@ const CartSchema = mongoose.Schema({
     chargeId: String,
     chargeDate: Date,
     charge: String,
+    shippingAddress : addressSchema,
     isPaid: {
       type: Boolean,
       default: false
@@ -911,6 +921,42 @@ CartSchema.statics.updateCart = function(selections, shop, userId){
   });
 }
 
+CartSchema.statics.updateShippingAddress = function(shippingAddress, shop, userId){
+
+
+  return new Promise(function(resolve, reject){
+    let user;
+    let variant;
+
+    User.findById(userId).then(function(userFound){
+      if(!userFound) reject(new Error("No user with this id"))
+
+      user = userFound;
+
+      return Cart.findOne({shop: shop, user: user});
+    }).then(function(cart){
+      if(cart){
+
+        cart.shippingAddress = shippingAddress
+        return cart.save();
+      }
+      //Toherwise we create one
+      else{
+        reject(new Error("No cart for this user, so we are not able to remove any products from it"))
+      }
+
+
+    }).then(function(cart){
+
+      resolve(cart);
+    }).catch(function(error){
+
+      reject(error);
+    });
+
+  });
+}
+
 
 CartSchema.methods.updateSelection = function(selection){
 
@@ -1004,7 +1050,7 @@ const OrderSchema = mongoose.Schema({
     chargeId: String,
     chargeDate: Date,
     charge: String,
-    shippingAddress: String,
+    shippingAddress: addressSchema,
     billingAddress: String,
     status:{
       type: String,
@@ -1053,6 +1099,7 @@ OrderSchema.statics.createFromCart = function(cartId){
         chargeId: cart.chargeId,
         chargeDate: cart.chargeDate,
         charge: cart.charge,
+        shippingAddress: cart.shippingAddress,
         status: OrderStatus.PAID
       });
 

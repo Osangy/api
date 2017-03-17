@@ -21,6 +21,16 @@ export const schema = [`
     location
   }
 
+  type Address {
+    streetNumber: String
+    route : String
+    locality : String
+    region: String
+    country: String
+    postalCode: String
+    googleId: String
+  }
+
 
   # A message sent to or by the page
   type Message {
@@ -79,6 +89,8 @@ export const schema = [`
     timezone: Float
     # The gender of the user
     gender: String
+
+    createdAt: Float
 
   }
 
@@ -144,6 +156,8 @@ export const schema = [`
 
     #The total price of the cart
     totalPrice: Float!
+
+    shippingAddress : Address
   }
 
   # The product seelcted by a user in his cart and all the infos attached to it

@@ -339,6 +339,13 @@ function sendReceipt(order){
               currency: "EUR",
               payment_method: payment_method,
               elements : elements,
+              address : {
+                street_1 : `${order.shippingAddress.streetNumber} ${order.shippingAddress.route}`,
+                city: `${order.shippingAddress.locality}`,
+                postal_code: `${order.shippingAddress.postalCode}`,
+                state: `${order.shippingAddress.region}`,
+                country: `${order.shippingAddress.country}`
+              },
               timestamp: moment(order.chargeDate).unix(),
               summary: {
                 total_cost: order.price

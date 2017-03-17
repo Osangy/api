@@ -25,6 +25,16 @@ const rootSchema = [`
     quantity: Float!
   }
 
+  input AddressInput {
+    streetNumber : String!
+    route : String!
+    locality : String!
+    region : String!
+    country : String!
+    postalCode : String!
+    googleId: String!
+  }
+
   type ShopErrorResponse {
     shop: Shop,
     errors: [String]
@@ -73,7 +83,7 @@ const rootSchema = [`
     addCart(userId: String!, variantId: String!): Cart
 
     # Update the cart
-    updateCart(userId: ID!, selections: [SelectionInput]!): Cart
+    updateCart(userId: ID!, selections: [SelectionInput], shippingAddress : AddressInput): Cart
 
     # Connect to Stripe accounts
     stripeConnect(authorizationCode: String!): ShopErrorResponse
@@ -216,15 +226,23 @@ const rootResolvers = {
           cart
         ));
     },
-    updateCart(root, {userId, selections}, context){
+    updateCart(root, {userId, selections, shippingAddress}, context){
       logging.info("Mutation : Update Cart");
-      return Promise.resolve()
-        .then(() => (
-           Cart.updateCart(selections, context.user, userId)
-        ))
-        .then((cart) => (
-          cart
-        ));
+      return new Promise((resolve, reject) => {
+        if(selections){
+          return Cart.updateCart(selections, context.user, userId).then((cart) => {
+            resolve(cart);
+          })
+        }
+        else if(shippingAddress){
+          return Cart.updateShippingAddress(shippingAddress, context.user, userId).then((cart) => {
+            resolve(cart);
+          })
+        }
+        else{
+          reject("Need to modify selections or shipping address")
+        }
+      });
     },
     stripeConnect(root, {authorizationCode}, context){
       logging.info("Mutation : Stripe Connect");
