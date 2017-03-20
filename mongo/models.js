@@ -1067,10 +1067,16 @@ OrderSchema.plugin(autoIncrement.plugin, 'Order');
 
 //Analytics happens here
 OrderSchema.pre('save', function (next) {
-    if(this.isNew){
-      analytics.trackSellShop(this);
-    }
+    this.wasNew = this.isNew;
     next();
+});
+
+OrderSchema.post('save', function () {
+    if (this.wasNew) {
+        analytics.trackSellShop(this);
+        this.user.lastShippingAddress = this.shippingAddress;
+        this.user.save();
+    }
 });
 
 OrderSchema.statics.createFromCart = function(cartId){
