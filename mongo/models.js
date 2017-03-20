@@ -304,6 +304,30 @@ ProductSchema.statics.createProduct = function(data, shop){
 
 }
 
+
+ProductSchema.statics.searchProducts = function(searchString, shop, limit){
+
+  console.log("searchString");
+
+  let andSearch = [];
+  _.split(searchString, " ").map((word) => {
+    andSearch.push({title : { "$regex" : '.*'+word+'.*', "$options" : "i" } })
+  });
+
+  logging.info(andSearch);
+
+  return new Promise((resolve, reject) => {
+    Product.find({ shop : shop, "$and" : andSearch}).limit(limit).then((products) => {
+      resolve(products);
+    }).catch((err) => {
+      reject(err);
+    })
+  });
+
+
+
+}
+
 /*
 * VARIANTS SCHEMA
 */

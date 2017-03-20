@@ -56,7 +56,7 @@ const rootSchema = [`
     user(facebookId: String!): User
 
     # The products of a shop
-    products(limit: Int = 10): [Product]
+    products(limit: Int = 10, searchString : String): [Product]
 
     #The variants of a product
     variants(product : ID!): [Variant]
@@ -153,10 +153,18 @@ const rootResolvers = {
       logging.info("Querying User");
       return User.findOne({ facebook_id: facebookId });
     },
-    products(root, { limit }, context){
+    products(root, { limit, searchString }, context){
       logging.info("Querying products");
       const limitValidator = (limit > 20) ? 20 : limit;
-      return Product.find({ shop: context.user._id}).limit(limit);
+
+      if(!searchString){
+        return Product.find({ shop: context.user._id}).limit(limit);
+      }
+      else{
+        logging.info("Search String");
+        logging.info(searchString);
+        return Product.searchProducts(searchString, context.user, limit);
+      }
     },
     variants(root, { product }, context){
       logging.info("Querying Variants");
