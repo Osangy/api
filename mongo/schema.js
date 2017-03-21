@@ -231,7 +231,7 @@ export const schema = [`
     chargeDate: Float # Actually a date
 
     # The Shipping address
-    shippingAddress: String
+    shippingAddress: Address
 
     # The billing address
     billingAddress : String
@@ -241,6 +241,9 @@ export const schema = [`
 
     #Date of creation
     createdAt: Float
+
+    #Selection of products
+    selections : [Selection]
 
 
   }
