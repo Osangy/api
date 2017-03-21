@@ -31,6 +31,9 @@ const subscriptionManager = new SubscriptionManager({
     cartModified: (options, args) => ({
       cartModified: cart => cart.shop._id === args.shopId,
     }),
+    conversationModified: (options, args) => ({
+      conversationModified: conversation => conversation.shop._id === args.shopId,
+    }),
   },
 });
 

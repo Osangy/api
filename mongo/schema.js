@@ -268,6 +268,7 @@ export const resolvers = {
     }
   },
   Conversation: {
+    id: property("_id"),
     user({user}, _, context) {
       return User.findOne({_id : user});
     },

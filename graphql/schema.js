@@ -6,6 +6,7 @@ import facebook from '../utils/facebookUtils';
 import shop from '../utils/shop';
 import logging from '../lib/logging';
 import Promise from 'bluebird';
+import { pubsub } from './subscriptions';
 import moment from 'moment';
 
 Promise.promisifyAll(require("mongoose"));
@@ -108,6 +109,9 @@ const rootSchema = [`
 
     # Subscription fires when cart has been modified
     cartModified(shopId: ID!): Cart
+
+    # Subscription fires when cart has been modified
+    conversationModified(shopId: ID!): Conversation
   }
 
   schema {
@@ -134,6 +138,7 @@ const rootResolvers = {
           if(messages){
             let conversation = messages[0].conversation;
             conversation.nbUnreadMessages = 0;
+            pubsub.publish('conversationModified', conversation);
             return conversation.save();
           }
           else{
@@ -311,6 +316,7 @@ const rootResolvers = {
         })
         .then((conversation) => {
           conversation.nbUnreadMessages = 0;
+          pubsub.publish('conversationModified', conversation);
           return conversation.save();
         })
         .then((conversation) => {
@@ -324,6 +330,9 @@ const rootResolvers = {
     },
     cartModified(cart) {
       return cart;
+    },
+    conversationModified(conversation) {
+      return conversation;
     },
   },
 };
