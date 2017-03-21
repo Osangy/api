@@ -461,14 +461,14 @@ const MessageSchema = mongoose.Schema({
   });
 
 MessageSchema.pre('save', function (next) {
-    if(this.isNew){
-      analytics.trackMessage(this);
-    }
+    this.wasNew = this.isNew;
     next();
 });
 
 //After a message save we increment the nb of message of the conversation
 MessageSchema.post('save', function(message) {
+  if(this.wasNew){
+    analytics.trackMessage(this);
     Conversation.findById(message.conversation).then((conversation) => {
       conversation.nbMessages++;
       if(!message.isEcho){
@@ -478,11 +478,12 @@ MessageSchema.post('save', function(message) {
       return conversation.save();
     }).then((conversation) => {
       pubsub.publish('conversationModified', conversation);
-      console.log("Updated conversation messages info");
     }).catch((err) => {
       console.error("Problem updating conversation messages info");
       console.error(err.message);
-    })
+    });
+  }
+
 });
 
 

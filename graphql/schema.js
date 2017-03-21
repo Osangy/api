@@ -137,9 +137,14 @@ const rootResolvers = {
           messsagesToReturn = reverse(messages);
           if(messages){
             let conversation = messages[0].conversation;
-            conversation.nbUnreadMessages = 0;
-            pubsub.publish('conversationModified', conversation);
-            return conversation.save();
+            if(conversation.nbUnreadMessages > 0){
+              conversation.nbUnreadMessages = 0;
+              pubsub.publish('conversationModified', conversation);
+              return conversation.save();
+            }
+            else{
+              return messsagesToReturn
+            }
           }
           else{
             return messsagesToReturn;
