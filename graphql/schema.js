@@ -139,7 +139,7 @@ const rootResolvers = {
             let conversation = messages[0].conversation;
             if(conversation.nbUnreadMessages > 0){
               conversation.nbUnreadMessages = 0;
-              pubsub.publish('conversationModified', conversation);
+              pubsub.publish('newMessageInConversationChannel', conversation);
               return conversation.save();
             }
             else{
@@ -321,7 +321,7 @@ const rootResolvers = {
         })
         .then((conversation) => {
           conversation.nbUnreadMessages = 0;
-          pubsub.publish('conversationModified', conversation);
+          pubsub.publish('newMessageInConversationChannel', conversation);
           return conversation.save();
         })
         .then((conversation) => {

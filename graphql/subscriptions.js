@@ -26,13 +26,22 @@ const subscriptionManager = new SubscriptionManager({
   // every time a new comment is posted whose repository name matches args.repoFullName.
   setupFunctions: {
     messageAdded: (options, args) => ({
-      messageAdded: message => message.shop._id === args.shopId,
+      messageAdded: {
+        filter : message => message.shop._id === args.shopId,
+      },
     }),
     cartModified: (options, args) => ({
-      cartModified: cart => cart.shop._id === args.shopId,
+      cartModified: {
+        filter : cart => cart.shop._id === args.shopId,
+      },
     }),
     conversationModified: (options, args) => ({
-      conversationModified: conversation => conversation.shop._id === args.shopId,
+        newConversationChannel: {
+          filter : conversation => conversation.shop.toString() === args.shopId,
+        },
+        newMessageInConversationChannel: {
+          filter : conversation => conversation.shop.toString() === args.shopId,
+        }
     }),
   },
 });

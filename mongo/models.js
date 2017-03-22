@@ -477,7 +477,7 @@ MessageSchema.post('save', function(message) {
       conversation.lastMessageDate = moment();
       return conversation.save();
     }).then((conversation) => {
-      pubsub.publish('conversationModified', conversation);
+      pubsub.publish('newConversationChannel', conversation);
     }).catch((err) => {
       console.error("Problem updating conversation messages info");
       console.error(err.message);

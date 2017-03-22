@@ -13,7 +13,7 @@ function generateToken(shop) {
 function setShopInfo(request) {
 
   var infos = {
-    _id: request._id,
+    id: request._id,
     shopName: request.shopName,
     email: request.email,
     pageId : request.pageId,
@@ -102,7 +102,7 @@ exports.register = function(req, res, next) {
         //Once saved, we subscribe the app to the page
         return subscribePageToApp(shop.pageToken);
       }).then(function(){
-        
+
         const shopInfos = setShopInfo(shop);
         logging.info("Passed subscribe to page");
 
