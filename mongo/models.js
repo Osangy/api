@@ -35,6 +35,11 @@ const addressSchema = mongoose.Schema({
 
 const UserSchema = mongoose.Schema({
     facebookId: String,
+    shop: {
+      type: Schema.Types.ObjectId,
+      ref: 'Shop',
+      index: true
+    },
     firstName: String,
     lastName: String,
     profilePic: String,
@@ -45,6 +50,25 @@ const UserSchema = mongoose.Schema({
     lastUpdate: Date
 }, {
   timestamps: true
+});
+
+UserSchema.pre('save', function (next) {
+    this.wasNew = this.isNew;
+    next();
+});
+
+//After a message save we increment the nb of message of the conversation
+UserSchema.post('save', function(message) {
+  if(this.wasNew){
+    analytics.trackNewCustomer(this);
+    let cart = new Cart({
+      shop : this.shop,
+      user : this
+    });
+    cart.save();
+
+  }
+
 });
 
 
@@ -95,15 +119,12 @@ UserSchema.statics.createFromFacebook = function(user_id, shop){
         if(userJson.timezone) user.timezone = userJson.timezone;
         if(userJson.gender) user.gender = userJson.gender;
 
-        user.save().then(function(user){
-          resolve(user);
-        }).catch(function(err){
-          reject(err);
-        });
+        user.shop = shop;
 
-
+        return user.save();
+      }).then((user) => {
+        resolve(user);
       }).catch(function(err){
-        logging.error("Error downloading info about user")
         logging.error(err);
         reject(err);
       });

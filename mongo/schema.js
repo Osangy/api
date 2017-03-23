@@ -155,7 +155,7 @@ export const schema = [`
     selections: [Selection]
 
     #The total price of the cart
-    totalPrice: Float!
+    totalPrice: Float
 
     shippingAddress : Address
   }
