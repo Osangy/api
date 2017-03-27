@@ -24,7 +24,7 @@ import multer from 'multer';
 import logging from '../lib/logging';
 import shop from '../utils/shop';
 import request from 'request';
-
+import OpticsAgent from 'optics-agent';
 import { SubscriptionServer } from 'subscriptions-transport-ws';
 import { subscriptionManager } from '../graphql/subscriptions';
 
@@ -39,9 +39,16 @@ const corsOptions = {
 }
 
 
+//OpticsAgent
+OpticsAgent.configureAgent({
+  apiKey: config.OPTIC_API_KEY
+});
+OpticsAgent.instrumentSchema(schema);
+
 const app = express();
 app.set('view engine', 'pug');
 app.set('views', 'views');
+app.use(OpticsAgent.middleware());
 app.use(cors());
 app.use(express.static('files'));
 app.use(morgan('combined'));
@@ -184,7 +191,8 @@ apiRoutes.use('/graphql', bodyParser.json(), graphqlExpress(request => ({
   }),
   context: {
     pageId: config.page_id,
-    user: request.user
+    user: request.user,
+    opticsContext: OpticsAgent.context(request)
   }
 })));
 apiRoutes.use('/graphiql', graphiqlExpress({

@@ -89,7 +89,13 @@ function manageMessage(messageObject, shop){
 
     if(messageObject.message.is_echo){
       Message.createFromFacebookEcho(messageObject, shop).then(function(message){
-        pubsub.publish('messageAdded', message);
+
+        //Push to the agent the message if he did not send it
+        //TODO : We will need to push anyway if we gave multiple agent
+        if(message.echoType != "standard"){
+          pubsub.publish('messageAdded', message);
+        }
+
         resolve(message);
       }).catch(function(err){
         reject(err);

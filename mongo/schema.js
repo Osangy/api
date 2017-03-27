@@ -5,6 +5,7 @@ import GraphQLJSON from 'graphql-type-json';
 import _ from 'lodash';
 import moment from 'moment';
 import Promise from 'bluebird';
+import logging from '../lib/logging';
 
 Promise.promisifyAll(require("mongoose"));
 
@@ -255,7 +256,7 @@ export const resolvers = {
   Message: {
     id: property("_id"),
     timestamp({timestamp}, _, context) {
-      return moment(timestamp).unix()
+      return moment(timestamp).valueOf();
     },
     sender({ sender }, _, context) {
       return User.findOne({ _id : sender});

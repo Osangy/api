@@ -49,6 +49,7 @@
     "mongoose-auto-increment": "^5.0.1",
     "morgan": "^1.7.0",
     "multer": "^1.2.1",
+    "optics-agent": "^1.1.2",
     "passport": "^0.3.2",
     "passport-facebook": "^2.1.1",
     "passport-jwt": "^2.2.1",
