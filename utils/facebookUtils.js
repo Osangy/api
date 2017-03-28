@@ -8,6 +8,7 @@ import rp from 'request-promise';
 import moment from 'moment';
 import { pubsub } from '../graphql/subscriptions';
 import background from '../lib/background';
+import messaging from './messaging';
 
 Promise.promisifyAll(require("mongoose"));
 
@@ -34,6 +35,9 @@ exports.manageEntry = function(entry){
       //Event with a message
       if (messagingEvent.message) {
         rightMessages.push(messagingEvent);
+      }
+      else if(messagingEvent.postback){
+        logging.info("WE HAVE A POSTBACK !!!");
       }
 
       //TODO: Message delivery
@@ -105,7 +109,18 @@ function manageMessage(messageObject, shop){
       Message.createFromFacebook(messageObject, shop).then(function(message){
         //Send to subscriptions the new message
         pubsub.publish('messageAdded', message);
-        resolve(message);
+
+        //If it is a payload, we have to do an automatic action
+        if(messageObject.message.quick_reply.payload != null){
+          managePayloadAction(shop, message.sender, messageObject.message.quick_reply.payload).then(() => {
+            resolve((message));
+          }).catch((err) => {
+            reject(err);
+          })
+        }
+        else{
+          resolve(message);
+        }
       }).catch(function(err){
         reject(err);
       })
@@ -115,6 +130,38 @@ function manageMessage(messageObject, shop){
 
 }
 
+/*
+* Manage Payload Actions
+*/
+
+function managePayloadAction(shop, user, payload){
+
+  return new Promise((resolve, reject) => {
+
+    switch (payload) {
+      case config.PAYLOAD_INFOS_CART:
+        messaging.sendInfosCartState(shop, user).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        });
+
+        break;
+      case config.PAYLOAD_INFOS_CART_LIST_PRODUCTS:
+        messaging.sendListPoductsCart(shop, user).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        });
+
+        break;
+      default:
+        logging.info("Does not know this payload");
+    }
+
+  });
+
+}
 
 /*
 * Get the user infos from FB
@@ -195,7 +242,12 @@ function sendMessage(shop, recipientId, text, metadata){
     }).then((parsedBody) => {
 
       newMessage.mid = parsedBody.message_id;
-      newMessage.echoType = "standard";
+      if(metadata){
+        newMessage.echoType = metadata;
+      }
+      else{
+        newMessage.echoType = "standard";
+      }
       return newMessage.save();
 
     }).then((message) => {
@@ -255,6 +307,35 @@ function sendImage(shop, recipientId, imageUrl){
       reject(err);
     });
 
+  });
+}
+
+
+/*
+* SEND A MESSAGE WITH QUICK REPLIES
+*/
+
+function sendTextWithQuickReplies(shop, recipientId, text, replies, metadata){
+
+  const messageData = {
+    recipient : {
+      id: recipientId
+    },
+    message: {
+      text : text,
+      quick_replies: replies
+    }
+  }
+
+  if(metadata) messageData.metadata = metadata;
+
+  return new Promise((resolve, reject) => {
+    send(messageData, shop.pageToken).then((parsedBody) =>{
+      logging.info("Send Text with Quick Replies ");
+      resolve(parsedBody);
+    }).catch((err) => {
+      reject(err);
+    })
   });
 }
 
@@ -517,6 +598,7 @@ function whitelistDomains(pageToken){
   });
 }
 
+exports.sendTextWithQuickReplies = sendTextWithQuickReplies;
 exports.sendReceipt = sendReceipt;
 exports.sendButtonForPayCart = sendButtonForPayCart;
 exports.sendMessage = sendMessage;

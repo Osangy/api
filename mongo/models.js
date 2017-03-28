@@ -11,6 +11,7 @@ import autoIncrement from 'mongoose-auto-increment';
 import { pubsub } from '../graphql/subscriptions';
 import randtoken from 'rand-token';
 import analytics from '../lib/analytics';
+import messaging from '../utils/messaging';
 
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 Promise.promisifyAll(require("mongoose"));
@@ -359,8 +360,25 @@ const VariantSchema = mongoose.Schema({
       ref: 'Product'
     },
     type : String,
-    value: String
+    value: String,
+    productTitle : String,
+    title: String,
+    price: Number
 });
+
+// VariantSchema.pre('save', function (next) {
+//     this.wasNew = this.isNew;
+//     next();
+// });
+//
+// //After a message save we increment the nb of message of the conversation
+// VariantSchema.post('save', function(message) {
+//   if(this.wasNew){
+//     this.productTitle = this.product.title;
+//     this.title = `${this.product.title} - ${this.type} : ${this.value}`;
+//     this.price = this.product.price;
+//   }
+// }
 
 VariantSchema.statics.createVariantSize = (product, size) => {
 
@@ -369,7 +387,10 @@ VariantSchema.statics.createVariantSize = (product, size) => {
     let newVariant = new Variant({
       product: product,
       type: "size",
-      value: size
+      value: size,
+      productTitle: product.title,
+      title: `${product.title} - Size : ${size}`,
+      price: product.price
     });
 
     newVariant.save().then((variant) => {
@@ -377,39 +398,6 @@ VariantSchema.statics.createVariantSize = (product, size) => {
     }).catch((err) => {
       reject(err);
     })
-
-  });
-}
-
-VariantSchema.statics.createVariant = (data, shop) => {
-
-  return new Promise(function(resolve, reject){
-
-
-    Product.findOne({reference : data.reference}).then((product) => {
-      if(!product){
-        reject(new Error("No productg found for this reference"));
-      }
-      else{
-
-        let newVariant = new Variant({
-          shop: shop,
-          product: product,
-          reference: data.variantReference,
-        });
-        if(data.images) newVariant.images = data.images.split(',');
-        if(data.size) newVariant.size = data.size;
-        if(data.color) newVariant.color = data.color;
-        if(data.price) newVariant.price = data.price;
-        if(data.stock) newVariant.stock = data.stock;
-
-        return newVariant.save();
-      }
-    }).then((variant) => {
-      resolve(variant);
-    }).catch((error) => {
-      reject(error);
-    });
 
   });
 }
@@ -473,7 +461,7 @@ const MessageSchema = mongoose.Schema({
     },
     echoType: {
         type: String,
-        enum: ['standard', 'askPayCart', 'payConfirmation', 'receipt', 'orderStatus']
+        enum: ['standard', 'askPayCart', 'payConfirmation', 'receipt', 'orderStatus', 'addedProductCart', "giveCartState", "listProductsCart"]
     },
     attachments : [attachmentSchema]
   },
@@ -630,7 +618,7 @@ MessageSchema.statics.createFromFacebookEcho = (messageObject, shop) => {
   return new Promise((resolve, reject) => {
 
     //Find a message with this mid
-    Message.findOne({ mid: messageObject.message.mid }).populate("conversation").then((message) => {
+    Message.findOne({ mid: messageObject.message.mid }).populate("conversation shop").then((message) => {
 
       //Update message if we already have it in the database
       if(message){
@@ -811,6 +799,7 @@ CartSchema.statics.createFakeCart = function(shop, userId, price = 100){
   return new Promise((resolve, reject) => {
 
     let persistentUser;
+    let finalCart;
 
     User.findById(userId).then((user) => {
       if(!user) reject(new Error("No user with this id"));
@@ -850,6 +839,7 @@ CartSchema.statics.addProduct = function(variantId, shop, userId){
   return new Promise(function(resolve, reject){
     let user;
     let variant;
+    let finalCart;
 
     User.findById(userId).then(function(userFound){
       if(!userFound) reject(new Error("No user with this id"))
@@ -861,7 +851,7 @@ CartSchema.statics.addProduct = function(variantId, shop, userId){
       if(!variantFound) reject(new Error("No variant with this id"))
 
       variant = variantFound
-      return Cart.findOne({shop: shop, user: user});
+      return Cart.findOne({shop: shop, user: user}).populate('user shop');
     }).then(function(cart){
 
       //There is already a cart
@@ -913,8 +903,11 @@ CartSchema.statics.addProduct = function(variantId, shop, userId){
 
 
     }).then(function(cart){
+      finalCart = cart;
+      return messaging.sendInfosAfterAddCart(variant, shop, user, finalCart);
+    }).then(() => {
 
-      resolve(cart);
+      resolve(finalCart);
     }).catch(function(error){
 
       reject(error);

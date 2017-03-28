@@ -21,5 +21,7 @@
     "APP_FEES" : 0.01,
     "SOCKET_PORT" : 8443,
     "SEGMENT_BACKEND_WRITE_KEY" : "s6uCXREm0YVCszSk0xJq0SuuZd3oUZg4",
-    "OPTIC_API_KEY" : "service:adriendulong-cProject:Jhv-EN8N-2a9F37GbGmBRg"
+    "OPTIC_API_KEY" : "service:adriendulong-cProject:Jhv-EN8N-2a9F37GbGmBRg",
+    "PAYLOAD_INFOS_CART" : "INFOS_CONTENT_CART",
+    "PAYLOAD_INFOS_CART_LIST_PRODUCTS" : "INFOS_LIST_PRODUCT_CART"
 }
