@@ -25,17 +25,10 @@ html(lang="en")
     form
       div(class="group")
         label
-          span Name
-          input(class="field" placeholder="Jane Doe")
-        label
-          span Phone
-          input(class="field" placeholder="06 21 81 88 98")
-      div(class="group")
-        label
           span Card
           div(id="card-element" class="field")
       input(type="hidden" name="cartToken" value=cartToken)
-      button(type="submit" ) Pay #{price}€
+      button(type="submit" id="buttonPay") Pay #{price}€
       div(class="outcome")
         div(class="error")
         div(class="success")

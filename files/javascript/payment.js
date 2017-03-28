@@ -76,6 +76,7 @@ function payWithToken(token, cartId){
   })
   .catch(function (error) {
     console.log(error);
+    document.getElementById("buttonPay").disabled = false;
   });
 
 }
@@ -145,9 +146,11 @@ function mountCard(){
 
   document.querySelector('form').addEventListener('submit', function(e) {
     e.preventDefault();
+    document.getElementById("buttonPay").disabled = true;
     stripe.createToken(card).then((result) => {
       if (result.error) {
         // Inform the user if there was an error
+        document.getElementById("buttonPay").disabled = false;
         setErrorOutcome(result.error);
       } else {
         // Send the token to your server

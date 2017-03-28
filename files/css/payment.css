@@ -93,6 +93,11 @@ button:active {
   background: #43458B;
 }
 
+button:disabled {
+  background: #bdc3c7;
+}
+
+
 .outcome {
   float: left;
   width: 100%;
