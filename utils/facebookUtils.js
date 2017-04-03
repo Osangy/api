@@ -92,18 +92,25 @@ function manageMessage(messageObject, shop){
 
 
     if(messageObject.message.is_echo){
-      Message.createFromFacebookEcho(messageObject, shop).then(function(message){
+      if(messageObject.message.attachments && messageObject.message.attachments[0].payload == null){
+        logging.info("Can't treat it for the moment");
+        resolve();
+      }
+      else{
+        Message.createFromFacebookEcho(messageObject, shop).then(function(message){
 
-        //Push to the agent the message if he did not send it
-        //TODO : We will need to push anyway if we gave multiple agent
-        if(message.echoType != "standard"){
-          pubsub.publish('messageAdded', message);
-        }
+          //Push to the agent the message if he did not send it
+          //TODO : We will need to push anyway if we gave multiple agent
+          if(message.echoType != "standard"){
+            pubsub.publish('messageAdded', message);
+          }
 
-        resolve(message);
-      }).catch(function(err){
-        reject(err);
-      })
+          resolve(message);
+        }).catch(function(err){
+          reject(err);
+        })
+      }
+
     }
     else{
       Message.createFromFacebook(messageObject, shop).then(function(message){
@@ -111,7 +118,7 @@ function manageMessage(messageObject, shop){
         pubsub.publish('messageAdded', message);
 
         //If it is a payload, we have to do an automatic action
-        if(messageObject.message.quick_reply.payload != null){
+        if(messageObject.message.quick_reply != null){
           managePayloadAction(shop, message.sender, messageObject.message.quick_reply.payload).then(() => {
             resolve((message));
           }).catch((err) => {
@@ -123,7 +130,7 @@ function manageMessage(messageObject, shop){
         }
       }).catch(function(err){
         reject(err);
-      })
+      });
     }
 
   });

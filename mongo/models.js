@@ -48,13 +48,18 @@ const UserSchema = mongoose.Schema({
     timezone: Number,
     gender: String,
     lastShippingAddress : addressSchema,
-    lastUpdate: Date
+    lastUpdate: Date,
+    adSource : {
+      type: Schema.Types.ObjectId,
+      ref: 'Ad'
+    }
 }, {
   timestamps: true
 });
 
 UserSchema.pre('save', function (next) {
     this.wasNew = this.isNew;
+    this.newAdSource = this.isModified("adSource");
     next();
 });
 
@@ -67,7 +72,13 @@ UserSchema.post('save', function(message) {
       user : this
     });
     cart.save();
+  }
 
+  if(this.newAdSource){
+    if(this.adSource){
+      this.adSource.newUsers++;
+      this.adSource.save();
+    }
   }
 
 });
@@ -77,17 +88,35 @@ UserSchema.post('save', function(message) {
   * Find a user, if does not exist create it
   */
 
-UserSchema.statics.createOrFindUser = function(user_id, shop){
+UserSchema.statics.createOrFindUser = function(user_id, shop, adId){
     return new Promise(function(resolve, reject){
 
       User.findOne({facebookId : user_id}).then(function(user){
 
         if(user){
-          resolve(user);
+          if(adId){
+            Ad.findOne({adId : adId}).then((ad) => {
+              if(ad){
+                user.adSource = ad;
+                user.save().then((user) => {
+                  resolve(user);
+                }).catch((err) => {
+                  reject(err);
+                });
+              }
+              else{
+                resolve(user);
+              }
+            });
+          }
+          else{
+            resolve(user);
+          }
         }
         else{
           logging.info("User NOT found");
-          User.createFromFacebook(user_id, shop).then(function(user){
+
+          User.createFromFacebook(user_id, shop, adId).then(function(user){
             resolve(user);
           }).catch(function(err){
             reject(err);
@@ -106,13 +135,18 @@ UserSchema.statics.createOrFindUser = function(user_id, shop){
   * Create a user from the Facebook infos
   */
 
-UserSchema.statics.createFromFacebook = function(user_id, shop){
+UserSchema.statics.createFromFacebook = function(user_id, shop, adId){
 
     return new Promise(function(resolve, reject){
 
-      getFacebookUserInfos(shop, user_id).then(function(userJson){
+      let user = new User({facebookId : user_id});
+      user.shop = shop;
 
-        let user = new User({facebookId : user_id});
+
+      user.save().then((user) => {
+        return getFacebookUserInfos(shop, user_id);
+      }).then((userJson) => {
+
         if(userJson.first_name) user.firstName = userJson.first_name;
         if(userJson.last_name) user.lastName = userJson.last_name;
         if(userJson.profile_pic) user.profilePic = userJson.profile_pic;
@@ -120,9 +154,12 @@ UserSchema.statics.createFromFacebook = function(user_id, shop){
         if(userJson.timezone) user.timezone = userJson.timezone;
         if(userJson.gender) user.gender = userJson.gender;
 
-        user.shop = shop;
-
-        return user.save();
+        if(adId){
+          return user.addAd(adId);
+        }
+        else{
+          return user.save();
+        }
       }).then((user) => {
         resolve(user);
       }).catch(function(err){
@@ -133,6 +170,24 @@ UserSchema.statics.createFromFacebook = function(user_id, shop){
 
   }
 
+UserSchema.methods.addAd = function(adId){
+
+  const user = this;
+  return new Promise((resolve, reject) => {
+
+    Ad.findOne({adId : adId}).then((ad) => {
+
+      if(ad) user.adSource = ad;
+
+      return user.save();
+    }).then((user) => {
+      resolve(user);
+    }).catch((err) => {
+      reject(err);
+    });
+  });
+
+}
 
 //================================
 // Shop Schema
@@ -506,12 +561,19 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
   let user_id = (messageObject.message.is_echo) ? messageObject.recipient.id : messageObject.sender.id
   let user;
 
+  let adId = null;
+  if(messageObject.message.metadata){
+    const meta = JSON.parse(messageObject.message.metadata);
+    if(meta.ad_id) adId = meta.ad_id
+  }
 
   return new Promise(function(resolve, reject){
 
-    //See if user exists, or create one
-    User.createOrFindUser(user_id, shop).then(function(userObject){
+    //Capture the source if there is one
+    User.createOrFindUser(user_id, shop, adId).then((userObject) => {
 
+      logging.info("USER");
+      logging.info(userObject.toObject());
       user = userObject;
 
       //See if conversation exists, or create one
@@ -545,7 +607,9 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
       }
 
       if(messageObject.message.metadata){
-        message.echoType = messageObject.message.metadata;
+        const meta = JSON.parse(messageObject.message.metadata);
+        if(meta.ad_id) logging.info("ADDDDDDDDDDD");
+        else message.echoType = messageObject.message.metadata;
       }
 
       //TODO : increment message counter and date in conversation
@@ -667,23 +731,29 @@ MessageSchema.methods.manageAttachments = function(attachments){
       case "template":
         newAttachment.type = attachment.type;
         let payload = {};
-        switch (attachment.payload.template_type) {
-          case "button":
-            payload.template_type = attachment.payload.template_type;
-            payload.text = attachment.payload.text;
-            payload.buttons = [];
-            attachment.payload.buttons.forEach((button) => {
+        if(attachment.payload){
+          switch (attachment.payload.template_type) {
+            case "button":
+              payload.template_type = attachment.payload.template_type;
+              payload.text = attachment.payload.text;
+              payload.buttons = [];
+              attachment.payload.buttons.forEach((button) => {
 
-              if(button.type === "web_url"){
-                payload.buttons.push(button)
-              }
+                if(button.type === "web_url"){
+                  payload.buttons.push(button)
+                }
 
-            })
-            break;
-          default:
+              })
+              break;
+            default:
 
+          }
+          newAttachment.payload = payload;
         }
-        newAttachment.payload = payload;
+        else{
+          payload.text = newAttachment.title;
+        }
+
       default:
     }
     this.attachments.push(newAttachment);
@@ -708,6 +778,10 @@ MessageSchema.methods.manageAttachments = function(attachments){
         ref: 'User',
         index: true
       },
+      sources : [{
+        type: Schema.Types.ObjectId,
+        ref: 'Source'
+      }],
       nbMessages: {
         type: Number,
         default: 0
@@ -732,7 +806,9 @@ MessageSchema.methods.manageAttachments = function(attachments){
       Conversation.findOne({ shop: shop._id, user: user._id}).then(function(conversation){
 
         if(conversation){
+
           resolve(conversation);
+
         }
         else{
           logging.info("NOT found a conversation, need to create one");
@@ -1264,8 +1340,47 @@ OrderSchema.methods.getSelectionsForFacebook = function(){
 
 }
 
+const AdSchema = mongoose.Schema({
+    shop: {
+      type: Schema.Types.ObjectId,
+      ref: 'Shop',
+      index: true
+    },
+    adId : {
+      type: String,
+      index: true
+    },
+    product : {
+      type: Schema.Types.ObjectId,
+      ref: 'Product'
+    },
+    newUsers: {
+      type: Number,
+      default: 0
+    },
+  },
+  {
+    timestamps: true
+});
 
+AdSchema.statics.createFromFacebook = function(shop, adId){
 
+  const newAd = new Ad({
+    shop: shop,
+    adId: adId
+  });
+
+  return new Promise((resolve, reject) => {
+    newAd.save().then((ad) => {
+      resolve(ad);
+    }).catch((err) => {
+      reject(err);
+    })
+  });
+
+}
+
+let Ad = mongoose.model('Ad', AdSchema);
 let Order = mongoose.model('Order', OrderSchema);
 let Cart = mongoose.model('Cart', CartSchema);
 let Product = mongoose.model('Product', ProductSchema);
@@ -1275,6 +1390,7 @@ let User = mongoose.model('User', UserSchema);
 let Message = mongoose.model('Message', MessageSchema);
 let Conversation = mongoose.model('Conversation', ConversationSchema);
 
+exports.Ad = Ad;
 exports.Order = Order;
 exports.Cart = Cart;
 exports.Product = Product;

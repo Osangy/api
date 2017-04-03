@@ -11,7 +11,6 @@ Promise.promisifyAll(require("mongoose"));
 function sendInfosAfterAddCart(variant, shop, customer, cart){
 
   const firstMessage = `${variant.product.title} - ${_.upperFirst(variant.type)} : ${_.upperCase(variant.value)}, d'un montant de ${variant.product.price}€, vient d'être ajouté à votre panier`;
-  const secondMessage = `Votre panier contient maintenant ${cart.nbProducts} produit(s), pour un montant total de ${cart.totalPrice}€`;
 
   return new Promise((resolve, reject) => {
 
@@ -48,7 +47,7 @@ function sendInfosCartState(shop, customer){
             payload: config.PAYLOAD_INFOS_CART_LIST_PRODUCTS
           }
         ];
-        const message = `Votre panier contient ${cart.nbProducts} produits, pour un montant total de ${cart.totalPrice}€`;
+        const message = `Votre panier contient ${cart.nbProducts} produit(s), pour un montant total de ${cart.totalPrice}€`;
         return facebook.sendTextWithQuickReplies(shop, customer.facebookId, message, replies, "giveCartState");
       }
 

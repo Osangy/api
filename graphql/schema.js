@@ -1,7 +1,7 @@
 import { schema as mongoSchema, resolvers as mongoResolvers } from '../mongo/schema';
 import { makeExecutableSchema } from 'graphql-tools';
 import { merge, reverse } from 'lodash';
-import { User, Message, Conversation, Cart, Product, Variant, Shop, Order } from '../mongo/models';
+import { User, Message, Conversation, Cart, Product, Variant, Shop, Order, Ad } from '../mongo/models';
 import facebook from '../utils/facebookUtils';
 import shop from '../utils/shop';
 import logging from '../lib/logging';
@@ -100,6 +100,9 @@ const rootSchema = [`
 
     #Set messages of a conversation as read
     setMessagesAsRead(conversationId: ID!): Conversation
+
+    #Create a new Ad
+    createFacebookAd(adId: String!): Ad
 
   }
 
@@ -326,6 +329,15 @@ const rootResolvers = {
         })
         .then((conversation) => {
           return conversation
+        });
+    },
+    createFacebookAd(root, {adId}, context){
+      return Promise.resolve()
+        .then(() => {
+          return Ad.createFromFacebook(context.user, adId)
+        })
+        .then((ad) => {
+          return ad
         });
     }
   },

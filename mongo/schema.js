@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { User, Message, Shop, Product, Conversation, Cart, Variant, Order } from './models';
+import { User, Message, Shop, Product, Conversation, Cart, Variant, Order, Ad } from './models';
 import { property } from 'lodash';
 import GraphQLJSON from 'graphql-type-json';
 import _ from 'lodash';
@@ -90,6 +90,8 @@ export const schema = [`
     timezone: Float
     # The gender of the user
     gender: String
+    #Ad Source
+    adSource: Ad
 
     createdAt: Float
 
@@ -249,6 +251,21 @@ export const schema = [`
 
   }
 
+  #An Ad
+  type Ad {
+    id: ID!
+
+    #The ad shop
+    shop: Shop!
+
+    #The Ad Id
+    adId: String
+
+    #A Product associated to the ad
+    product: Product
+
+  }
+
 `];
 
 
@@ -259,10 +276,10 @@ export const resolvers = {
       return moment(timestamp).valueOf();
     },
     sender({ sender }, _, context) {
-      return User.findOne({ _id : sender});
+      return User.findById(sender);
     },
     recipient({ recipient }, _, context) {
-      return User.findOne({ _id : recipient});
+      return User.findById(recipient);
     },
     conversation({ conversation }, _, context) {
       return Conversation.findById(conversation);
@@ -271,7 +288,7 @@ export const resolvers = {
   Conversation: {
     id: property("_id"),
     user({user}, _, context) {
-      return User.findOne({_id : user});
+      return User.findById(user);
     },
     messages(obj, args, context){
       return Message.find({conversation : obj._id});
@@ -280,7 +297,7 @@ export const resolvers = {
   Cart: {
     id: property("_id"),
     user({user}, _, context) {
-      return User.findOne({_id : user});
+      return User.findById(user);
     },
     selections(obj, args, context){
       return obj.selections;
@@ -302,6 +319,14 @@ export const resolvers = {
     },
     shop({shop}, _, context){
       return Shop.findById(shop);
+    }
+  },
+  Ad: {
+    shop({shop}, _, context){
+      return Shop.findById(shop);
+    },
+    product({product}, _, context){
+      return Product.findById(product);
     }
   },
   JSON: GraphQLJSON,
