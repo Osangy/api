@@ -605,6 +605,30 @@ function whitelistDomains(pageToken){
   });
 }
 
+
+function getInsightsAd(shop, ad){
+  return new Promise((resolve, reject) => {
+
+    const uri = `https://graph.facebook.com/v2.8/${ad.adId}/insights`;
+    const options = {
+      uri: uri,
+      qs: {
+        fields: "call_to_action_clicks,frequency,impressions,spend",
+        access_token: "EAAHZBZCMzElzoBANvOBegFpvY5d8LnoY0qmlQOOKj1wmOflh00jlS07vKgAai3AV7o5GxooNATm36W391feEH5ZA5rlR1LOKicrmNoPTySRHZAGuhqjm3bejW3FfeubR1ZAwaNfGUENCHp5BmcimdOp7gMnTdR98ZD"
+      }
+    }
+
+    rp(options).then((parsedBody) => {
+      logging.info("Ad Insight");
+      logging.info(parsedBody);
+      resolve(ad);
+    }).catch((error) => {
+      reject(error);
+    })
+  });
+}
+
+exports.getInsightsAd = getInsightsAd;
 exports.sendTextWithQuickReplies = sendTextWithQuickReplies;
 exports.sendReceipt = sendReceipt;
 exports.sendButtonForPayCart = sendButtonForPayCart;

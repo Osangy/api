@@ -264,6 +264,15 @@ export const schema = [`
     #A Product associated to the ad
     product: Product
 
+    #New Customers that arrived thanks to this app
+    newUsers: Float
+
+    #Amount of all the orders that has been done thanks to customers brought by this ad
+    amountOrders: Float
+
+    #Number of orders that has been done thanks to customers brought by this ad
+    nbOrders: Float
+
   }
 
 `];

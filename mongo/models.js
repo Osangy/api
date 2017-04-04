@@ -12,6 +12,7 @@ import { pubsub } from '../graphql/subscriptions';
 import randtoken from 'rand-token';
 import analytics from '../lib/analytics';
 import messaging from '../utils/messaging';
+import other from '../utils/other';
 
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 Promise.promisifyAll(require("mongoose"));
@@ -562,7 +563,7 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
   let user;
 
   let adId = null;
-  if(messageObject.message.metadata){
+  if(messageObject.message.metadata && other.isJson(messageObject.message.metadata)){
     const meta = JSON.parse(messageObject.message.metadata);
     if(meta.ad_id) adId = meta.ad_id
   }
@@ -607,9 +608,7 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
       }
 
       if(messageObject.message.metadata){
-        const meta = JSON.parse(messageObject.message.metadata);
-        if(meta.ad_id) logging.info("ADDDDDDDDDDD");
-        else message.echoType = messageObject.message.metadata;
+        if(!adId) message.echoType = messageObject.message.metadata;
       }
 
       //TODO : increment message counter and date in conversation
@@ -1192,6 +1191,16 @@ OrderSchema.post('save', function () {
         analytics.trackSellShop(this);
         this.user.lastShippingAddress = this.shippingAddress;
         this.user.save();
+
+        if(this.user.adSource != null){
+          logging.info("UPDATE AD WITH ORDER");
+          Ad.findById(this.user.adSource).then((ad) => {
+            logging.info("FOUND AD")
+            ad.nbOrders++
+            ad.amountOrders += this.price;
+            ad.save();
+          });
+        }
     }
 });
 
@@ -1348,13 +1357,23 @@ const AdSchema = mongoose.Schema({
     },
     adId : {
       type: String,
-      index: true
+      index: true,
+      unique: true,
+      required: true
     },
     product : {
       type: Schema.Types.ObjectId,
       ref: 'Product'
     },
     newUsers: {
+      type: Number,
+      default: 0
+    },
+    nbOrders: {
+      type: Number,
+      default: 0
+    },
+    amountOrders: {
       type: Number,
       default: 0
     },

@@ -41,6 +41,11 @@ const rootSchema = [`
     errors: [String]
   }
 
+  type AdResponse {
+    ad: Ad,
+    error: String
+  }
+
   type PurchasesInfo {
     nbOrders : Float!
     lastOrder : Order
@@ -67,6 +72,12 @@ const rootSchema = [`
 
     # The orders of a shop
     orders(limit : Int = 30, userId: ID): [Order]
+
+    #The ads tracked for the shop
+    ads(limit : Int = 30): [Ad]
+
+    #The detail of an ad
+    ad(adId: ID!) : Ad
 
     # The infos about all the purchases that the customer did
     purchasesInfos(userId: ID!) : PurchasesInfo
@@ -102,7 +113,7 @@ const rootSchema = [`
     setMessagesAsRead(conversationId: ID!): Conversation
 
     #Create a new Ad
-    createFacebookAd(adId: String!): Ad
+    createFacebookAd(adId: String!): AdResponse
 
   }
 
@@ -196,6 +207,10 @@ const rootResolvers = {
         return Order.find({shop : context.user}).sort({createdAt : -1}).limit(limit);
       }
     },
+    ads(root, {limit}, context){
+      logging.info("Querying Ads");
+      return Ad.find({shop : context.user}).sort({createdAt : -1}).limit(limit);
+    },
     purchasesInfos(root, {userId}, context){
       logging.info("Querying Purchases Infos");
       let ordersCount;
@@ -214,6 +229,18 @@ const rootResolvers = {
             lastOrder : lastOrder
           }
         });
+    },
+    ad(root, {adId}, context){
+      return Promise.resolve()
+        .then(() => (
+          Ad.findById(adId)
+        ))
+        .then((ad) => (
+          facebook.getInsightsAd(context.user, ad)
+        ))
+        .then((ad) => (
+          ad
+        ))
     }
   },
   Mutation : {
@@ -332,13 +359,19 @@ const rootResolvers = {
         });
     },
     createFacebookAd(root, {adId}, context){
-      return Promise.resolve()
-        .then(() => {
-          return Ad.createFromFacebook(context.user, adId)
+      return new Promise((resolve, reject) => {
+        Ad.createFromFacebook(context.user, adId).then((ad) => {
+          resolve({
+            ad: ad,
+            error: null
+          });
+        }).catch((err) => {
+          resolve({
+            ad: null,
+            error: err.message
+          });
         })
-        .then((ad) => {
-          return ad
-        });
+      });
     }
   },
   Subscription: {
