@@ -26,6 +26,13 @@ const rootSchema = [`
     quantity: Float!
   }
 
+  input ClosedAutoInput {
+    isActivated: Boolean!
+    startHour: Float
+    endHour: Float
+    message: String
+  }
+
   input AddressInput {
     streetNumber : String!
     route : String!
@@ -38,7 +45,7 @@ const rootSchema = [`
 
   type ShopErrorResponse {
     shop: Shop,
-    errors: [String]
+    error: String
   }
 
   type AdResponse {
@@ -52,6 +59,10 @@ const rootSchema = [`
   }
 
   type Query {
+
+    #Infos about the shop
+    shop: Shop
+
     # A list of message
     messages(limit:Int!, conversationId: String!, offset:Float!) : [Message]
 
@@ -84,6 +95,9 @@ const rootSchema = [`
   }
 
   type Mutation {
+
+    #Update infos about the shop
+    updateShopInfos(timezone:String, closedAuto:ClosedAutoInput): ShopErrorResponse
 
     # A page send a message to a user
     sendMessage(text: String!, facebookId: String!): Message
@@ -138,6 +152,15 @@ const rootSchema = [`
 
 const rootResolvers = {
   Query: {
+    shop(root, {}, context){
+      return Promise.resolve()
+        .then(() => (
+          Shop.findById(context.user.id)
+        ))
+        .then((shop) => (
+          shop
+        ))
+    },
     messages(root, {limit, conversationId, offset}, context) {
       logging.info("Querying Messages");
       const limitValidator = (limit > 100) ? 100 : limit;
@@ -236,14 +259,36 @@ const rootResolvers = {
           Ad.findById(adId)
         ))
         .then((ad) => (
-          facebook.getInsightsAd(context.user, ad)
-        ))
-        .then((ad) => (
           ad
         ))
     }
   },
   Mutation : {
+    updateShopInfos(root,{timezone, closedAuto}, context){
+      return new Promise((resolve, reject) => {
+        if(!timezone && !closedAuto) resolve({
+          shop: null,
+          error: "Need at least one field to modify"
+        });
+
+        Shop.findById(context.user.id).then((shop) => {
+          if(timezone) shop.timezone = timezone;
+          else shop.closedAutoOption = closedAuto;
+
+          return shop.save()
+        }).then((shop) => {
+          resolve({
+            shop: shop,
+            error: null
+          });
+        }).catch((err) => {
+          resolve({
+            shop: null,
+            error: err.message
+          });
+        });
+      })
+    },
     sendMessage(root, {text, facebookId}, context){
       logging.info(`Mutation : An agent send : ${text} / to facebook Id : ${facebookId}`);
       return Promise.resolve()
@@ -305,7 +350,7 @@ const rootResolvers = {
           console.log(err.message);
           resolve({
             shop: null,
-            errors: [err.message]
+            errors: err.message
           })
         });
 

@@ -32,6 +32,13 @@ export const schema = [`
     googleId: String
   }
 
+  type ClosedAutoOption {
+    isActivated: Boolean!
+    startHour: Float
+    endHour: Float
+    message: String
+  }
+
 
   # A message sent to or by the page
   type Message {
@@ -208,6 +215,12 @@ export const schema = [`
 
     #The facebook page id of the shop
     pageId: String
+
+    #The shop timezone
+    timezone: String
+
+    #Close option for automatic message
+    closedAutoOption: ClosedAutoOption
 
   }
 

@@ -208,6 +208,12 @@ const ShopSchema = new Schema({
       type: String,
       required: true
     },
+    closedAutoOption : {
+      isActivated: Boolean,
+      startHour: Number,
+      endHour: Number,
+      message: String
+    },
     stripe: {
       token_type : String,
       stripe_publishable_key: String,
@@ -217,6 +223,7 @@ const ShopSchema = new Schema({
       refresh_token: String,
       access_token: String
     },
+    timezone: String,
     shopUrl: { type: String },
     pageId: { type: String },
     pageToken: { type: String },
