@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import Promise from 'bluebird';
 import { getFacebookUserInfos, sendMessage } from '../utils/facebookUtils';
-import moment from 'moment';
+import moment from 'moment-timezone';
 import _ from 'lodash';
 import logging from '../lib/logging';
 import background from '../lib/background';
@@ -223,7 +223,10 @@ const ShopSchema = new Schema({
       refresh_token: String,
       access_token: String
     },
-    timezone: String,
+    timezone: {
+      type: String,
+      default: "Europe/Paris"
+    },
     shopUrl: { type: String },
     pageId: { type: String },
     pageToken: { type: String },
@@ -300,6 +303,35 @@ ShopSchema.methods.getStripeToken = function(authorizationCode){
 
 }
 
+
+ShopSchema.methods.sendAutoMessageIfClosed = function(message){
+
+  return new Promise((resolve, reject) => {
+
+    if(!message.sender) resolve(false);
+    if(!this.closedAutoOption) resolve(false);
+    if(!this.closedAutoOption.isActivated) resolve(false);
+    else{
+      const now = moment().tz(this.timezone);
+      const hour = now.hour();
+      logging.info("HOUR");
+      logging.info(hour);
+      logging.info(this.closedAutoOption.startHour);
+      if((hour < this.closedAutoOption.endHour) || (hour >= this.closedAutoOption.startHour )){
+        sendMessage(this, message.sender.facebookId, this.closedAutoOption.message, "autoClosedMessage").then((message) => {
+          resolve(true);
+        }).catch((err) => {
+          reject(err);
+        })
+      }
+      else{
+        resolve(false);
+      }
+    }
+
+  })
+
+}
 
   /*
   * PRODUCTS SCHEMA
@@ -524,7 +556,7 @@ const MessageSchema = mongoose.Schema({
     },
     echoType: {
         type: String,
-        enum: ['standard', 'askPayCart', 'payConfirmation', 'receipt', 'orderStatus', 'addedProductCart', "giveCartState", "listProductsCart"]
+        enum: ['standard', 'askPayCart', 'payConfirmation', 'receipt', 'orderStatus', 'addedProductCart', "giveCartState", "listProductsCart", "autoClosedMessage"]
     },
     attachments : [attachmentSchema]
   },
@@ -568,6 +600,7 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
   //See if the emssage was sent by the page or the user
   let user_id = (messageObject.message.is_echo) ? messageObject.recipient.id : messageObject.sender.id
   let user;
+  let finalMessage = null;
 
   let adId = null;
   if(messageObject.message.metadata && other.isJson(messageObject.message.metadata)){
@@ -620,8 +653,11 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
 
       //TODO : increment message counter and date in conversation
       return message.save();
-    }).then(function(message){
-      resolve(message);
+    }).then((message) => {
+      finalMessage = message;
+      return shop.sendAutoMessageIfClosed(message);
+    }).then(() => {
+      resolve(finalMessage);
     }).catch(function(err){
       reject(err);
     });
