@@ -101,6 +101,9 @@ export const schema = [`
     #Ad Source
     adSource: Ad
 
+    #If he is still unknown and not available to send message to
+    isUnknown: Boolean
+
     createdAt: Float
 
   }
@@ -321,6 +324,12 @@ export const resolvers = {
     },
     messages(obj, args, context){
       return Message.find({conversation : obj._id});
+    },
+    lastMessageDate({lastMessageDate}, _, context){
+      return moment(lastMessageDate).valueOf();
+    },
+    lastCustomerRead({lastCustomerRead}, _, context){
+      return moment(lastCustomerRead).valueOf();
     }
   },
   Cart: {

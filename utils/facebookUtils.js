@@ -178,34 +178,59 @@ function managePayloadAction(shop, user, payload){
 
 exports.getFacebookUserInfos = function(shop, userId){
 
-  let uri = `https://graph.facebook.com/v2.8/${userId}`;
+  let uri = `https://graph.facebook.com/v2.6/${userId}`;
 
   return new Promise(function (resolve, reject){
-    //Request FB API
-    request({
+
+    const options = {
       uri: uri,
       qs: {
         fields: 'first_name,last_name,profile_pic,locale,timezone,gender,last_ad_referral',
         access_token: shop.pageToken
       },
       json: true,
-      method: 'GET'
-    }, function(error, response, body){
+      method: 'GET',
+      simple: false,
+      resolveWithFullResponse: true
+    }
 
-      if(!error && response.statusCode == 200){
-        logging.info(body);
-        resolve(body);
-      }
-      else if(error){
-        logging.error("Request error : " + error);
-        reject(error);
-      }
+    rp(options).then((response) => {
+      logging.info("USER INFOS GOT");
+      if(response.statusCode == 400) resolve(false);
       else{
-        logging.info(body);
-        resolve({});
+        console.log(response.body);
+        resolve(response.body);
       }
+    }).catch((err) => {
+      logging.error("Request error : " + err.message);
+      reject(err);
+    })
 
-    });
+    // //Request FB API
+    // request({
+    //   uri: uri,
+    //   qs: {
+    //     fields: 'first_name,last_name,profile_pic,locale,timezone,gender,last_ad_referral',
+    //     access_token: shop.pageToken
+    //   },
+    //   json: true,
+    //   method: 'GET'
+    // }, function(error, response, body){
+    //
+    //   if(!error && response.statusCode == 200){
+    //     logging.info(body);
+    //     resolve(body);
+    //   }
+    //   else if(error){
+    //     logging.error("Request error : " + error);
+    //     reject(error);
+    //   }
+    //   else{
+    //     logging.info(body);
+    //     resolve({});
+    //   }
+    //
+    // });
   });
 
 }

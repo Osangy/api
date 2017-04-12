@@ -47,6 +47,10 @@ const UserSchema = mongoose.Schema({
       ref: 'Shop',
       index: true
     },
+    isUnknown: {
+      type: Boolean,
+      default: true
+    },
     firstName: String,
     lastName: String,
     profilePic: String,
@@ -61,7 +65,7 @@ const UserSchema = mongoose.Schema({
     },
     lastAdReferal : {
       source: String,
-      type: String,
+      typeAd: String,
       ad_id: String
     }
 }, {
@@ -71,12 +75,13 @@ const UserSchema = mongoose.Schema({
 UserSchema.pre('save', function (next) {
     this.wasNew = this.isNew;
     this.newAdSource = this.isModified("adSource");
+    this.newUknown = this.isModified("isUnknown");
     next();
 });
 
 //After a message save we increment the nb of message of the conversation
 UserSchema.post('save', function(message) {
-  if(this.wasNew){
+  if(this.newUknown){
     analytics.trackNewCustomer(this);
     let cart = new Cart({
       shop : this.shop,
@@ -94,7 +99,6 @@ UserSchema.post('save', function(message) {
       this.adSource.save();
     }
   }
-
 });
 
 UserSchema.methods.getFullName = function(){
@@ -150,33 +154,46 @@ UserSchema.methods.updateIfNeeded = function(shop, adId){
   let user = this;
   return new Promise((resolve, reject) => {
 
-    if(this.firstName) resolve(user);
+    let shouldLeave = true;
+    if(this.isUnknown) shouldLeave = false;
+    if(this.adId) shouldLeave = false;
+    if(shouldLeave) resolve(user);
+    else{
+      getFacebookUserInfos(shop, user.facebookId).then((userJson) => {
+        logging.info(userJson)
+        if(userJson === false) resolve(user);
+        else{
+          this.isUnknown = false;
+          if(userJson.first_name) this.firstName = userJson.first_name;
+          if(userJson.last_name) this.lastName = userJson.last_name;
+          if(userJson.profile_pic) this.profilePic = userJson.profile_pic;
+          if(userJson.locale) this.locale = userJson.locale;
+          if(userJson.timezone) this.timezone = userJson.timezone;
+          if(userJson.gender) this.gender = userJson.gender;
+          if(userJson.last_ad_referral){
+            user.lastAdReferal = {};
+            user.lastAdReferal.source = userJson.last_ad_referral.source;
+            user.lastAdReferal.ad_id = userJson.last_ad_referral.ad_id;
+            user.lastAdReferal.typeAd = userJson.last_ad_referral.type;
+          }
 
-    getFacebookUserInfos(shop, user.facebookId).then((userJson) => {
-      if(userJson.first_name) this.firstName = userJson.first_name;
-      if(userJson.last_name) this.lastName = userJson.last_name;
-      if(userJson.profile_pic) this.profilePic = userJson.profile_pic;
-      if(userJson.locale) this.locale = userJson.locale;
-      if(userJson.timezone) this.timezone = userJson.timezone;
-      if(userJson.gender) this.gender = userJson.gender;
-      if(userJson.last_ad_referral) this.last_ad_referral = userJson.last_ad_referral;
-
-      if(userJson.last_ad_referral){
-        return this.addAd(userJson.last_ad_referral.ad_id);
-      }
-      else if(adId){
-        return this.addAd(adId);
-      }
-      else{
-        return this.save();
-      }
-    }).then((user) => {
-      resolve(user);
-    }).catch((err) => {
-      logging.error(err);
-      reject(err);
-    });
-
+          if(userJson.last_ad_referral){
+            return this.addAd(shop, userJson.last_ad_referral.ad_id);
+          }
+          else if(adId){
+            return this.addAd(shop, adId);
+          }
+          else{
+            return this.save();
+          }
+        }
+      }).then((user) => {
+        resolve(user);
+      }).catch((err) => {
+        logging.error(err);
+        reject(err);
+      });
+    }
   });
 }
 
@@ -189,26 +206,7 @@ UserSchema.statics.createFromFacebook = function(user_id, shop, adId){
 
 
       user.save().then((user) => {
-        return getFacebookUserInfos(shop, user_id);
-      }).then((userJson) => {
-
-        if(userJson.first_name) user.firstName = userJson.first_name;
-        if(userJson.last_name) user.lastName = userJson.last_name;
-        if(userJson.profile_pic) user.profilePic = userJson.profile_pic;
-        if(userJson.locale) user.locale = userJson.locale;
-        if(userJson.timezone) user.timezone = userJson.timezone;
-        if(userJson.gender) user.gender = userJson.gender;
-        if(userJson.last_ad_referral) user.last_ad_referral = userJson.last_ad_referral;
-
-        if(userJson.last_ad_referral){
-          return user.addAd(userJson.last_ad_referral.ad_id);
-        }
-        else if(adId){
-          return user.addAd(adId);
-        }
-        else{
-          return user.save();
-        }
+        return user.updateIfNeeded(shop, adId);
       }).then((user) => {
         resolve(user);
       }).catch(function(err){
@@ -219,22 +217,20 @@ UserSchema.statics.createFromFacebook = function(user_id, shop, adId){
 
   }
 
-UserSchema.methods.addAd = function(adId){
+UserSchema.methods.addAd = function(shop, adId){
 
   const user = this;
   return new Promise((resolve, reject) => {
 
-    Ad.findOne({adId : adId}).then((ad) => {
-
-      if(ad) user.adSource = ad;
-      else resolve(user);
-
+    Ad.findOrCreate(shop, adId).then((ad) => {
+      user.adSource = ad;
       return user.save();
     }).then((user) => {
       resolve(user);
     }).catch((err) => {
       reject(err);
     });
+
   });
 
 }
@@ -630,7 +626,7 @@ MessageSchema.post('save', function(message, next) {
       conversation.lastMessageDate = moment();
       return conversation.save();
     }).then((conversation) => {
-      pubsub.publish('newConversationChannel', conversation);
+      if(conversation.isAvailable) pubsub.publish('newConversationChannel', conversation);
       if(conversation.nbMessages === 1) return mailgun.sendNewConversationMail(message.shop.email, this);
       else next();
     }).then(() => {
@@ -879,6 +875,10 @@ MessageSchema.methods.manageAttachments = function(attachments){
         type: Number,
         default: 0
       },
+      isAvailable: {
+        type: Boolean,
+        default: false
+      },
       lastCustomerRead: Date,
       nbUnreadMessages: {
         type: Number,
@@ -900,13 +900,24 @@ ConversationSchema.statics.findOrCreate = function(user, shop){
     Conversation.findOne({ shop: shop._id, user: user._id}).then(function(conversation){
 
       if(conversation){
-
-        resolve(conversation);
-
+        if(!user.isUnknown && !conversation.isAvailable){
+          logging.info("Made Available");
+          conversation.isAvailable = true;
+          conversation.save().then((conversation) => {
+            resolve(conversation);
+          }).catch((err) => {
+            reject(err);
+          })
+        }
+        else{
+          resolve(conversation);
+        }
       }
       else{
         logging.info("NOT found a conversation, need to create one");
         conversation = new Conversation({ shop : shop, user : user});
+
+        if(!user.isUnknown) conversation.isAvailable = true;
 
         conversation.save().then(function(conversation){
           resolve(conversation);
@@ -1510,6 +1521,24 @@ const AdSchema = mongoose.Schema({
   {
     timestamps: true
 });
+
+AdSchema.statics.findOrCreate = function(shop, adId){
+
+  return new Promise((resolve, reject) => {
+
+    Ad.findOne({shop: shop, adId: adId}).then((ad) => {
+      if(ad) resolve(ad);
+      else{
+        Ad.createFromFacebook(shop, adId).then((ad) => {
+          resolve(ad);
+        });
+      }
+    }).catch((err) => {
+      reject(err);
+    })
+  });
+
+}
 
 AdSchema.statics.createFromFacebook = function(shop, adId){
 
