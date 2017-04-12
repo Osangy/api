@@ -1,0 +1,98 @@
+html(lang="en")
+  head
+    title Panier
+    meta(name="viewport" content="width=device-width, initial-scale=1.0")
+    link(rel="stylesheet" type="text/css" href="/css/checkout.css")
+    script(src="/jquery-3.1.1.min.js")
+    script(type="text/javascript" src="https://js.stripe.com/v3/")
+    script(type="text/javascript" src="https://unpkg.com/axios/dist/axios.min.js")
+    link(rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous")
+    script(src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous")
+    script(type="text/javascript").
+      (function(d, s, id){
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id)) {return;}
+        js = d.createElement(s); js.id = id;
+        js.src = "//connect.facebook.com/en_US/messenger.Extensions.js";
+        fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'Messenger'));
+    script(type='text/javascript').
+            var stripe_pub_key = '#{stripe_pub_key}';
+    
+  body
+    div(class="container")
+      div(class="row infos")
+        div(class="col-xs-12")
+          div(class="row")
+            div(class="col-xs-12")
+              h2(class="text-center") Votre Panier 🛒
+          div(class="row group")
+            div(class="col-xs-12")
+              h4 Produits 📦
+          div(class="row")
+            div(class="col-xs-12")
+              table(class="table")
+                thead
+                  tr 
+                    th QTE
+                    th Produit
+                    th Prix
+                tbody
+                  each selection in cart.selections
+                    tr
+                      td= selection.quantity
+                      td= selection.variant.title
+                      td #{selection.totalPriceVariant}€
+          div(class="row group")
+            div(class="col-xs-12")
+              h4 Adresse de livraison 🏠
+          div(class="row")
+            div(class="col-xs-12")
+              address
+                strong #{cart.user.firstName} #{cart.user.lastName} 
+                br
+                | #{cart.shippingAddress.streetNumber} #{cart.shippingAddress.route} 
+                br
+                | #{cart.shippingAddress.postalCode} #{cart.shippingAddress.locality}
+          div(class="row group")
+            div(class="col-xs-12")
+              h4 Récapitulatif 📝
+          div(class="col-xs-12")
+            table(class="table")
+              thead
+                tr 
+                  th
+                  th 
+              tbody
+                tr
+                  td Livraison
+                  td 
+                    strong Gratuite
+                tr
+                  td Sous Total
+                  td 
+                    strong #{cart.totalPrice}€
+                tr
+                  td Total
+                  td 
+                    strong #{cart.totalPrice}€
+    div(class="fixed-bottom")
+      div(class="row")
+        div(class="col-xs-12")
+          div(class="row")
+            div(class="col-xs-12")
+              h4 Paiement Sécurisé de #{cart.totalPrice}€ 🔒
+          div(class="row")
+            div(class="col-xs-12")
+              form(id="payment-form")
+                div(class="form-row")
+                  label(for="card-element") Renseignez vos coordonnées bancaires
+                  div(id="card-element")
+                  div(id="card-errors")
+                  div(id="card-success")
+                input(type="hidden" id="cartToken" value=cart.ask_payment_token)
+                button(type="submit" class="btn btn-success btn-block btn-lg" id="buttonPay") PAYER #{cart.totalPrice}€
+  script(type="text/javascript" src="/javascript/checkout.js")
+            
+        
+        

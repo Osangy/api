@@ -94,6 +94,7 @@ facebookRoutes.get('/webhook', routes.facebook.webhookValidation);
 facebookRoutes.get("/test", routes.facebook.sendTest);
 facebookRoutes.get("/test/image", routes.facebook.sendTestImage);
 facebookRoutes.get("/resub/:pageId", routes.facebook.reSub);
+facebookRoutes.get("/messenger/:pageId", routes.facebook.messengerInfos);
 facebookRoutes.post('/webhook', routes.facebook.webhookPost);
 app.use('/fb', facebookRoutes);
 
@@ -135,6 +136,7 @@ app.use('/stripe', stripeRoutes);
 */
 
 const shopRoutes = express.Router();
+shopRoutes.get('/p/:cartToken', routes.shop.testPay);
 shopRoutes.get('/pay/:cartToken', routes.shop.paySimple);
 shopRoutes.post('/validatePayment', routes.shop.validatePayment);
 app.use('/shop', shopRoutes);

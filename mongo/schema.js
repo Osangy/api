@@ -23,6 +23,7 @@ export const schema = [`
   }
 
   type Address {
+    recipientName: String
     streetNumber: String
     route : String
     locality : String
@@ -120,6 +121,12 @@ export const schema = [`
 
     # The messages that has been sent in this conversation
     messages: [Message]
+
+    #The date of the last message
+    lastMessageDate: Float
+
+    #The date the customer read for the last time
+    lastCustomerRead: Float
 
   }
 

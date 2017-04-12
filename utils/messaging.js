@@ -10,7 +10,7 @@ Promise.promisifyAll(require("mongoose"));
 
 function sendInfosAfterAddCart(variant, shop, customer, cart){
 
-  const firstMessage = `${variant.product.title} - ${_.upperFirst(variant.type)} : ${_.upperCase(variant.value)}, d'un montant de ${variant.product.price}€, vient d'être ajouté à votre panier`;
+  const firstMessage = `👉 ${variant.title}, d'un montant de ${variant.price}€, vient d'être ajouté à votre panier 🛒`;
 
   return new Promise((resolve, reject) => {
 
@@ -36,14 +36,14 @@ function sendInfosCartState(shop, customer){
       if(!cart) reject(new Error("No cart for this user and this shop"));
 
       if(cart.nbProducts === 0){
-        const message = `Votre panier est vide.`;
+        const message = `Votre panier est vide. 😭`;
         return facebook.sendMessage(shop, customer.facebookId, message, "giveCartState");
       }
       else{
         const replies = [
           {
             content_type: "text",
-            title: "Liste des produits",
+            title: "Liste des produits 📦",
             payload: config.PAYLOAD_INFOS_CART_LIST_PRODUCTS
           }
         ];
@@ -74,11 +74,11 @@ function sendListPoductsCart(shop, customer){
       let message = '';
       cart.selections.forEach((selection) => {
         if(selection.quantity === 1){
-          const newMessage = `* ${selection.variant.title} / Prix : ${selection.totalPriceVariant}€\n`;
+          const newMessage = `✔️ ${selection.variant.title} / Prix : ${selection.totalPriceVariant}€\n`;
           message += newMessage;
         }
         else{
-          const newMessage = `* ${selection.variant.title}, en ${selection.quantity} exemplaires / Prix : ${selection.totalPriceVariant}€\n`;
+          const newMessage = `✔️ ${selection.variant.title}, en ${selection.quantity} exemplaires / Prix : ${selection.totalPriceVariant}€\n`;
           message += newMessage;
         }
       });
@@ -98,8 +98,26 @@ function sendListPoductsCart(shop, customer){
 
 }
 
+
+function sendConfirmationPayment(shop, customer, cart){
+
+  const confirmationMessage = `Merci, nous avons bien reçu votre paiement de ${cart.totalPrice}€`;
+
+  return new Promise((resolve, reject) => {
+
+    facebook.sendMessage(shop, customer.facebookId, confirmationMessage, "payConfirmation").then(() => {
+      resolve();
+    }).catch((err) => {
+      reject(err);
+    })
+
+  });
+
+}
+
 module.exports = {
   sendInfosAfterAddCart,
   sendInfosCartState,
-  sendListPoductsCart
+  sendListPoductsCart,
+  sendConfirmationPayment
 };

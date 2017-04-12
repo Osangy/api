@@ -3,7 +3,7 @@ import Promise from 'bluebird';
 import logging from '../lib/logging';
 import rp from 'request-promise';
 
-const stripe = require("stripe")(config.STRIPE_TEST_SECRET_KEY);
+const stripe = require("stripe")(config.STRIPE_SECRET_KEY);
 
 function chargeForShop(shop, amount, token, description){
 

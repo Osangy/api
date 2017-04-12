@@ -13,6 +13,7 @@ import randtoken from 'rand-token';
 import analytics from '../lib/analytics';
 import messaging from '../utils/messaging';
 import other from '../utils/other';
+import mailgun from '../utils/mailgun'
 
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 Promise.promisifyAll(require("mongoose"));
@@ -22,6 +23,7 @@ let Schema = mongoose.Schema
   , ObjectId = Schema.ObjectId;
 
 const addressSchema = mongoose.Schema({
+  recipientName: String,
   streetNumber : String,
   route: String,
   locality: String,
@@ -36,7 +38,10 @@ const addressSchema = mongoose.Schema({
 */
 
 const UserSchema = mongoose.Schema({
-    facebookId: String,
+    facebookId: {
+      type: String,
+      unique: true
+    },
     shop: {
       type: Schema.Types.ObjectId,
       ref: 'Shop',
@@ -53,6 +58,11 @@ const UserSchema = mongoose.Schema({
     adSource : {
       type: Schema.Types.ObjectId,
       ref: 'Ad'
+    },
+    lastAdReferal : {
+      source: String,
+      type: String,
+      ad_id: String
     }
 }, {
   timestamps: true
@@ -70,7 +80,10 @@ UserSchema.post('save', function(message) {
     analytics.trackNewCustomer(this);
     let cart = new Cart({
       shop : this.shop,
-      user : this
+      user : this,
+      shippingAddress: {
+        recipientName: this.getFullName()
+      }
     });
     cart.save();
   }
@@ -84,35 +97,31 @@ UserSchema.post('save', function(message) {
 
 });
 
+UserSchema.methods.getFullName = function(){
+  let fullName = "";
+  if(this.firstName) fullName += `${this.firstName} `;
+  if(this.lastName) fullName += this.lastName;
+
+  return fullName;
+}
+
 
   /*
   * Find a user, if does not exist create it
   */
 
 UserSchema.statics.createOrFindUser = function(user_id, shop, adId){
-    return new Promise(function(resolve, reject){
 
-      User.findOne({facebookId : user_id}).then(function(user){
+    return new Promise((resolve, reject) => {
+
+      User.findOne({facebookId : user_id}).then((user) => {
 
         if(user){
-          if(adId){
-            Ad.findOne({adId : adId}).then((ad) => {
-              if(ad){
-                user.adSource = ad;
-                user.save().then((user) => {
-                  resolve(user);
-                }).catch((err) => {
-                  reject(err);
-                });
-              }
-              else{
-                resolve(user);
-              }
-            });
-          }
-          else{
+          user.updateIfNeeded(shop, adId).then((user) => {
             resolve(user);
-          }
+          }).catch((err) => {
+            reject(err);
+          });
         }
         else{
           logging.info("User NOT found");
@@ -136,6 +145,41 @@ UserSchema.statics.createOrFindUser = function(user_id, shop, adId){
   * Create a user from the Facebook infos
   */
 
+UserSchema.methods.updateIfNeeded = function(shop, adId){
+
+  let user = this;
+  return new Promise((resolve, reject) => {
+
+    if(this.firstName) resolve(user);
+
+    getFacebookUserInfos(shop, user.facebookId).then((userJson) => {
+      if(userJson.first_name) this.firstName = userJson.first_name;
+      if(userJson.last_name) this.lastName = userJson.last_name;
+      if(userJson.profile_pic) this.profilePic = userJson.profile_pic;
+      if(userJson.locale) this.locale = userJson.locale;
+      if(userJson.timezone) this.timezone = userJson.timezone;
+      if(userJson.gender) this.gender = userJson.gender;
+      if(userJson.last_ad_referral) this.last_ad_referral = userJson.last_ad_referral;
+
+      if(userJson.last_ad_referral){
+        return this.addAd(userJson.last_ad_referral.ad_id);
+      }
+      else if(adId){
+        return this.addAd(adId);
+      }
+      else{
+        return this.save();
+      }
+    }).then((user) => {
+      resolve(user);
+    }).catch((err) => {
+      logging.error(err);
+      reject(err);
+    });
+
+  });
+}
+
 UserSchema.statics.createFromFacebook = function(user_id, shop, adId){
 
     return new Promise(function(resolve, reject){
@@ -154,8 +198,12 @@ UserSchema.statics.createFromFacebook = function(user_id, shop, adId){
         if(userJson.locale) user.locale = userJson.locale;
         if(userJson.timezone) user.timezone = userJson.timezone;
         if(userJson.gender) user.gender = userJson.gender;
+        if(userJson.last_ad_referral) user.last_ad_referral = userJson.last_ad_referral;
 
-        if(adId){
+        if(userJson.last_ad_referral){
+          return user.addAd(userJson.last_ad_referral.ad_id);
+        }
+        else if(adId){
           return user.addAd(adId);
         }
         else{
@@ -179,6 +227,7 @@ UserSchema.methods.addAd = function(adId){
     Ad.findOne({adId : adId}).then((ad) => {
 
       if(ad) user.adSource = ad;
+      else resolve(user);
 
       return user.save();
     }).then((user) => {
@@ -273,10 +322,10 @@ ShopSchema.methods.getStripeToken = function(authorizationCode){
         method: 'POST',
         uri: 'https://connect.stripe.com/oauth/token',
         body: {
-            client_secret: config.STRIPE_TEST_SECRET_KEY,
+            client_secret: config.STRIPE_SECRET_KEY,
             code: authorizationCode,
             grant_type: "authorization_code",
-            client_id: config.STRIPE_DEV_CLIENT_ID
+            client_id: config.STRIPE_CLIENT_ID
         },
         json: true // Automatically stringifies the body to JSON
     };
@@ -484,7 +533,7 @@ VariantSchema.statics.createVariantSize = (product, size) => {
       type: "size",
       value: size,
       productTitle: product.title,
-      title: `${product.title} - Size : ${size}`,
+      title: `${product.title} - Taille : ${size}`,
       price: product.price
     });
 
@@ -570,7 +619,7 @@ MessageSchema.pre('save', function (next) {
 });
 
 //After a message save we increment the nb of message of the conversation
-MessageSchema.post('save', function(message) {
+MessageSchema.post('save', function(message, next) {
   if(this.wasNew){
     analytics.trackMessage(this);
     Conversation.findById(message.conversation).then((conversation) => {
@@ -582,13 +631,18 @@ MessageSchema.post('save', function(message) {
       return conversation.save();
     }).then((conversation) => {
       pubsub.publish('newConversationChannel', conversation);
-    }).catch((err) => {
-      console.error("Problem updating conversation messages info");
-      console.error(err.message);
+      if(conversation.nbMessages === 1) return mailgun.sendNewConversationMail(message.shop.email, this);
+      else next();
+    }).then(() => {
+      next();
     });
+  }
+  else{
+    next();
   }
 
 });
+
 
 
 /*
@@ -612,9 +666,6 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
 
     //Capture the source if there is one
     User.createOrFindUser(user_id, shop, adId).then((userObject) => {
-
-      logging.info("USER");
-      logging.info(userObject.toObject());
       user = userObject;
 
       //See if conversation exists, or create one
@@ -725,10 +776,9 @@ MessageSchema.statics.createFromFacebookEcho = (messageObject, shop) => {
 
     //Find a message with this mid
     Message.findOne({ mid: messageObject.message.mid }).populate("conversation shop").then((message) => {
-
       //Update message if we already have it in the database
       if(message){
-        message.timestamp = moment(messageObject.timestamp);
+        message.timestamp = new Date(messageObject.timestamp);
         return message.save();
       }
       //Otherwise we create it as a new one
@@ -739,6 +789,7 @@ MessageSchema.statics.createFromFacebookEcho = (messageObject, shop) => {
     }).then((message) => {
       resolve(message);
     }).catch((err) => {
+      logging.error(err.message);
       reject(err);
     })
 
@@ -828,6 +879,7 @@ MessageSchema.methods.manageAttachments = function(attachments){
         type: Number,
         default: 0
       },
+      lastCustomerRead: Date,
       nbUnreadMessages: {
         type: Number,
         default: 0
@@ -838,39 +890,75 @@ MessageSchema.methods.manageAttachments = function(attachments){
       timestamps: true
     });
 
-  /*
-  * Find a conversation, or create if it does not exists.
-  */
+/*
+* Find a conversation, or create if it does not exists.
+*/
 
-  ConversationSchema.statics.findOrCreate = function(user, shop){
+ConversationSchema.statics.findOrCreate = function(user, shop){
 
-    return new Promise(function(resolve, reject){
-      Conversation.findOne({ shop: shop._id, user: user._id}).then(function(conversation){
+  return new Promise(function(resolve, reject){
+    Conversation.findOne({ shop: shop._id, user: user._id}).then(function(conversation){
 
-        if(conversation){
+      if(conversation){
 
+        resolve(conversation);
+
+      }
+      else{
+        logging.info("NOT found a conversation, need to create one");
+        conversation = new Conversation({ shop : shop, user : user});
+
+        conversation.save().then(function(conversation){
           resolve(conversation);
+        }).catch(function(err){
+          reject(err);
+        });
+      }
 
-        }
-        else{
-          logging.info("NOT found a conversation, need to create one");
-          conversation = new Conversation({ shop : shop, user : user});
-
-          conversation.save().then(function(conversation){
-            resolve(conversation);
-          }).catch(function(err){
-            reject(err);
-          });
-        }
-
-      }).catch(function(err){
-        reject(err);
-      });
-
+    }).catch(function(err){
+      reject(err);
     });
 
+  });
 
-  }
+
+}
+
+/*
+* Save when a user read the messages
+*/
+
+ConversationSchema.statics.justRead = function(pageId, userFbId, watermark){
+
+  return new Promise(function(resolve, reject){
+    let foundShop = null;
+    let foundUser = null;
+
+    Shop.findOne({pageId : pageId}).then((shop) => {
+      if(!shop) reject(new Error("We did not find any shop with this page Id"));
+
+      foundShop = shop;
+      return User.findOne({ facebookId : userFbId});
+    }).then((user) => {
+      if(!user) resolve();
+
+      foundUser = user;
+      return Conversation.findOne({user : user, shop : foundShop})
+    }).then((conversation) => {
+      if(!conversation) resolve();
+
+      conversation.lastCustomerRead = new Date(watermark);
+      return conversation.save();
+    }).then((conversation) => {
+      resolve(conversation)
+    }).catch((err) => {
+      reject(err);
+    })
+
+  });
+
+
+}
 
 
 /*
@@ -1096,6 +1184,7 @@ CartSchema.statics.updateShippingAddress = function(shippingAddress, shop, userI
       if(cart){
 
         cart.shippingAddress = shippingAddress
+        if(cart.shippingAddress.recipientName == null) cart.shippingAddress.recipientName = `${userFound.firstName} ${userFound.lastName}`
         return cart.save();
       }
       //Toherwise we create one
@@ -1236,9 +1325,7 @@ OrderSchema.post('save', function () {
         this.user.save();
 
         if(this.user.adSource != null){
-          logging.info("UPDATE AD WITH ORDER");
           Ad.findById(this.user.adSource).then((ad) => {
-            logging.info("FOUND AD")
             ad.nbOrders++
             ad.amountOrders += this.price;
             ad.save();
@@ -1283,7 +1370,6 @@ OrderSchema.statics.createFromCart = function(cartId){
 
       return oldCart.totalClean();
     }).then((cart) => {
-      logging.info("CART MODIFIED");
       pubsub.publish('cartModified', cart);
       resolve(finalOrder);
     }).catch((err) => {

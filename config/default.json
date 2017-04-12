@@ -14,14 +14,17 @@
     "TOPIC_NAME": "message-process-queue-dev",
     "GCLOUD_PROJECT" : "cproject-158114",
     "CLOUD_BUCKET" : "cproject-158114",
-    "STRIPE_TEST_SECRET_KEY" : "sk_test_44hmiFYTzUMKyjuu09DkDNtK",
-    "STRIPE_LIVE_SECRET_KEY" : "sk_live_qX3jGwjq0uo2DJu4ia18LKKI",
-    "STRIPE_DEV_CLIENT_ID" : "ca_A5n5fmF9L5B2Tu3Fw4zsrsp13bRtubKG",
-    "STRIPE_PROD_CLIENT_ID" : "ca_A5n53NUyw063ayK5Y7d6M7MrNsz2DBzK",
-    "APP_FEES" : 0.01,
+    "STRIPE_PUB_KEY" : "pk_test_UV9YSjMjAHd5AerCCLBbTp7Y",
+    "STRIPE_SECRET_KEY" : "sk_test_44hmiFYTzUMKyjuu09DkDNtK",
+    "STRIPE_CLIENT_ID" : "ca_A5n5fmF9L5B2Tu3Fw4zsrsp13bRtubKG",
+    "APP_FEES" : 0.00,
     "SOCKET_PORT" : 8443,
     "SEGMENT_BACKEND_WRITE_KEY" : "s6uCXREm0YVCszSk0xJq0SuuZd3oUZg4",
     "OPTIC_API_KEY" : "service:adriendulong-cProject:Jhv-EN8N-2a9F37GbGmBRg",
     "PAYLOAD_INFOS_CART" : "INFOS_CONTENT_CART",
-    "PAYLOAD_INFOS_CART_LIST_PRODUCTS" : "INFOS_LIST_PRODUCT_CART"
+    "PAYLOAD_INFOS_CART_LIST_PRODUCTS" : "INFOS_LIST_PRODUCT_CART",
+    "MAILGUN_API_KEY": "key-dac48d7258c32a0a56bfd7dfbd85cd21",
+    "MAILGUN_DOMAIN": "sandbox0f8872ad4289494da0508002740f60a4.mailgun.org",
+    "MAILGUN_FROM_EMAIL": "adrien@sandbox0f8872ad4289494da0508002740f60a4.mailgun.org"
+
 }

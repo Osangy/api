@@ -7,6 +7,7 @@ import stripe from '../utils/stripe';
 import background from '../lib/background';
 import moment from 'moment';
 import facebook from '../utils/facebookUtils';
+import messaging from '../utils/messaging';
 
 Promise.promisifyAll(require("mongoose"));
 
@@ -18,18 +19,42 @@ Promise.promisifyAll(require("mongoose"));
 exports.paySimple = function(req, res){
   const cartToken = req.params.cartToken;
 
-  Cart.findOne({ask_payment_token : cartToken}).then((cart) => {
+  Cart.findOne({ask_payment_token : cartToken}).populate('selections.variant user').then((cart) => {
     if(!cart) res.send("Sorry but we did not find any cart. You probably already paid for it !");
     else{
-      res.render('pay', {
-        cartToken : cartToken,
-        price: cart.totalPrice
+      // res.render('pay', {
+      //   cartToken : cartToken,
+      //   price: cart.totalPrice
+      // });
+      res.render('checkout', {
+        cart: cart,
+        stripe_pub_key: config.STRIPE_PUB_KEY
       });
     }
   }).catch((err) => {
     res.send(err.message);
   })
 
+
+};
+
+/*
+* Example Pay Test
+*/
+
+exports.testPay = function(req, res){
+  const cartToken = req.params.cartToken;
+  Cart.findOne({ask_payment_token : cartToken}).populate('selections.variant user').then((cart) => {
+    if(!cart) res.send("Sorry but we did not find any cart. You probably already paid for it !");
+    else{
+      res.render('checkout', {
+        cart: cart,
+        stripe_pub_key: config.STRIPE_PUB_KEY
+      });
+    }
+  }).catch((err) => {
+    res.send(err.message);
+  })
 
 };
 
@@ -67,7 +92,7 @@ exports.validatePayment = function(req, res){
 
   }).then((cart) => {
 
-    return facebook.sendMessage(cart.shop, cart.user.facebookId, `Merci, nous avons bien reçu votre paiement de ${cart.totalPrice}€`, "payConfirmation");
+    return messaging.sendConfirmationPayment(cart.shop, cart.user, cart);
   }).then(() => {
     //Queue the fact to send a message + create a command + update the charge
     background.queuePaidCart(nowCart._id);

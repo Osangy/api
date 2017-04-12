@@ -1,5 +1,5 @@
 import config from 'config';
-import { manageEntry, sendMessage, sendAction, sendImage, getLongToken, getPages, subscribePageToApp } from '../utils/facebookUtils';
+import { manageEntry, sendMessage, sendAction, sendImage, getLongToken, getPages, subscribePageToApp, readMessengerProfile, setGetStarted, setGreetingMessenger } from '../utils/facebookUtils';
 import prettyjson from 'prettyjson';
 import logging from '../lib/logging';
 import Promise from 'bluebird';
@@ -118,6 +118,31 @@ exports.reSub = function(req, res){
       subscribePageToApp(shop.pageToken).then((success) => {
         res.status(200).send(success);
 
+      }).catch((err) => {
+        res.status(500).send(err.message);
+      })
+    }
+  }).catch((err) => {
+    res.status(500).send(err.message);
+  })
+
+}
+
+
+/*
+* Messenger Profile Infos
+*/
+
+exports.messengerInfos = function(req, res){
+
+
+  Shop.findOne({ pageId : req.params.pageId}).then((shop) => {
+    if(!shop){
+      res.status(500).send("No Shop with this page id");
+    }
+    else{
+      setGreetingMessenger(shop, "Bébé Tshirt, la boutique de vos petits bout de chou 👶🏻").then((body) => {
+        res.send(body);
       }).catch((err) => {
         res.status(500).send(err.message);
       })

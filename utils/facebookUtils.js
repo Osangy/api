@@ -1,7 +1,7 @@
 import config from 'config';
 import Promise from 'bluebird';
 import {parseAccessTokenResponse} from './other';
-import { Shop, Message } from '../mongo/models';
+import { Shop, Message, Conversation } from '../mongo/models';
 import logging from '../lib/logging';
 import request from 'request';
 import rp from 'request-promise';
@@ -30,7 +30,8 @@ exports.manageEntry = function(entry){
 
     //Remove the entries that does not have a message object
     let rightMessages = [];
-    entry.messaging.forEach(function(messagingEvent){
+    let readMessages = [];
+    entry.messaging.forEach((messagingEvent) => {
 
       //Event with a message
       if (messagingEvent.message) {
@@ -39,35 +40,40 @@ exports.manageEntry = function(entry){
       else if(messagingEvent.postback){
         logging.info("WE HAVE A POSTBACK !!!");
       }
+      else if(messagingEvent.read){
+        readMessages.push(messagingEvent)
+      }
 
       //TODO: Message delivery
       //TODO: Message read
-    })
-
-    Shop.findOne({ pageId: pageID }, function(err, shop) {
-      if(err){
-        reject(err);
-      }
-
-      //Mark the messages as received
-      if(rightMessages.length > 0){
-        if(!rightMessages[0].message.is_echo){
-          sendAction(shop, rightMessages[0].sender.id);
-        }
-      }
-
-      Promise.each(rightMessages, function(messagingEvent){
-        return manageMessage(messagingEvent, shop);
-      }).then(function(){
-        resolve();
-      }).catch(function(error){
-        reject(error);
-      })
-
     });
 
+    if(rightMessages.length > 0){
+      Shop.findOne({ pageId: pageID }, (err, shop) => {
+        if(err) reject(err);
 
+        //Mark the messages as received
+        if(!rightMessages[0].message.is_echo) sendAction(shop, rightMessages[0].sender.id);
 
+        Promise.each(rightMessages, (messagingEvent) => {
+          return manageMessage(messagingEvent, shop);
+        }).then(() => {
+          resolve();
+        }).catch((error) => {
+          reject(error);
+        });
+      });
+    }
+    else if(readMessages.length > 0){
+      Conversation.justRead(pageID, readMessages[readMessages.length - 1].sender.id, readMessages[readMessages.length - 1].read.watermark).then((conversation) => {
+        resolve();
+      }).catch((err) => {
+        reject(err);
+      })
+    }
+    else{
+      resolve();
+    }
   });
 
 
@@ -83,22 +89,17 @@ function manageMessage(messageObject, shop){
 
     // Text in the message
     if (messageText){
-      logging.info(`Received a message with some text : ${messageText}`);
-    }
-    //Attachment in the message
-    if(messageAttachements){
-      logging.info(`Received a message with an attachement of type ${messageAttachements[0].type}`);
+      logging.info(messageText);
     }
 
 
-    if(messageObject.message.is_echo){
+    if(messageObject.message.is_echo){sendTextWithQuickReplies
       if(messageObject.message.attachments && messageObject.message.attachments[0].payload == null){
         logging.info("Can't treat it for the moment");
         resolve();
       }
       else{
         Message.createFromFacebookEcho(messageObject, shop).then(function(message){
-
           //Push to the agent the message if he did not send it
           //TODO : We will need to push anyway if we gave multiple agent
           if(message.echoType != "standard"){
@@ -177,14 +178,14 @@ function managePayloadAction(shop, user, payload){
 
 exports.getFacebookUserInfos = function(shop, userId){
 
-  let uri = `https://graph.facebook.com/v2.6/${userId}`;
+  let uri = `https://graph.facebook.com/v2.8/${userId}`;
 
   return new Promise(function (resolve, reject){
     //Request FB API
     request({
       uri: uri,
       qs: {
-        fields: 'first_name,last_name,profile_pic,locale,timezone,gender',
+        fields: 'first_name,last_name,profile_pic,locale,timezone,gender,last_ad_referral',
         access_token: shop.pageToken
       },
       json: true,
@@ -192,11 +193,16 @@ exports.getFacebookUserInfos = function(shop, userId){
     }, function(error, response, body){
 
       if(!error && response.statusCode == 200){
+        logging.info(body);
         resolve(body);
       }
-      else{
+      else if(error){
         logging.error("Request error : " + error);
         reject(error);
+      }
+      else{
+        logging.info(body);
+        resolve({});
       }
 
     });
@@ -226,7 +232,7 @@ function sendMessage(shop, recipientId, text, metadata){
     }
   };
 
-  if(metadata) messageData.metadata = metadata;
+  if(metadata) messageData.message.metadata = metadata;
 
   return new Promise(function(resolve, reject){
 
@@ -334,7 +340,7 @@ function sendTextWithQuickReplies(shop, recipientId, text, replies, metadata){
     }
   }
 
-  if(metadata) messageData.metadata = metadata;
+  if(metadata) messageData.message.metadata = metadata;
 
   return new Promise((resolve, reject) => {
     send(messageData, shop.pageToken).then((parsedBody) =>{
@@ -365,12 +371,12 @@ function sendButtonForPayCart(shop, recipientId, cart){
         type: "template",
         payload: {
           template_type: "button",
-          text: `Vous pouvez dès à présent finir votre achat en completant le paiement de votre panier d'un montant de ${cart.totalPrice}€ en cliquant ci dessous.`,
+          text: `Vous pouvez dès à présent finir votre achat en validant votre panier, d'un montant de ${cart.totalPrice}€, en cliquant ci dessous.👇👇👇👇👇`,
           buttons: [
             {
               type: "web_url",
               url: apiPayUrl,
-              title: "Régler mon panier",
+              title: "Valider mon panier 🛒",
               messenger_extensions : true,
               fallback_url : apiPayUrl
             }
@@ -415,6 +421,8 @@ function sendReceipt(order){
   return new Promise((resolve, reject) => {
     const charge = JSON.parse(order.charge);
     const payment_method = `${charge.source.brand} ${charge.source.last4}`;
+    const sub = order.price * 0.8;
+    const total_tax = order.price * 0.2;
 
     order.getSelectionsForFacebook().then((elements) => {
 
@@ -442,7 +450,10 @@ function sendReceipt(order){
               },
               timestamp: moment(order.chargeDate).unix(),
               summary: {
-                total_cost: order.price
+                subtotal: sub,
+                total_cost: order.price,
+                total_tax: total_tax,
+                shipping_cost: 0.00
               }
             }
           }
@@ -628,6 +639,119 @@ function getInsightsAd(shop, ad){
   });
 }
 
+/*
+* Messenger Profile
+*/
+
+function readMessengerProfile(shop){
+  return new Promise((resolve, reject) => {
+
+    const uri = `https://graph.facebook.com/v2.8/me/messenger_profile`;
+    const options = {
+      uri: uri,
+      qs: {
+        fields: "account_linking_url,persistent_menu,target_audience,get_started,greeting,whitelisted_domains",
+        access_token: shop.pageToken
+      }
+    }
+
+    rp(options).then((parsedBody) => {
+      logging.info("Messenger Profile");
+      logging.info(parsedBody);
+      resolve(parsedBody);
+    }).catch((error) => {
+      reject(error);
+    })
+  });
+}
+
+function removeMessengerProfileInfos(shop, infos){
+  return new Promise((resolve, reject) => {
+
+    const uri = `https://graph.facebook.com/v2.6/me/messenger_profile`;
+    const options = {
+      uri: uri,
+      qs: {
+        access_token: shop.pageToken
+      },
+      json: {
+        fields: infos
+      },
+      method: 'DELETE'
+    }
+
+    rp(options).then((parsedBody) => {
+      logging.info("Removed infos from Messenger Profile");
+      logging.info(parsedBody);
+      resolve(parsedBody);
+    }).catch((error) => {
+      reject(error);
+    })
+  });
+}
+
+
+function setGetStarted(shop){
+  return new Promise((resolve, reject) => {
+
+    const uri = `https://graph.facebook.com/v2.6/me/messenger_profile`;
+    const options = {
+      uri: uri,
+      qs: {
+        access_token: shop.pageToken
+      },
+      json: {
+        get_started: {
+          payload: "GET_STARTED"
+        }
+      },
+      method: 'POST'
+    }
+
+    rp(options).then((parsedBody) => {
+      logging.info("Added get started");
+      logging.info(parsedBody);
+      resolve(parsedBody);
+    }).catch((error) => {
+      reject(error);
+    })
+  });
+}
+
+function setGreetingMessenger(shop, text){
+  return new Promise((resolve, reject) => {
+
+    const uri = `https://graph.facebook.com/v2.6/me/messenger_profile`;
+    const options = {
+      uri: uri,
+      qs: {
+        access_token: shop.pageToken
+      },
+      json: {
+        greeting: [
+          {
+            locale: "default",
+            text: text
+          }
+        ]
+      },
+      method: 'POST'
+    }
+
+    rp(options).then((parsedBody) => {
+      logging.info("Added greeting");
+      logging.info(parsedBody);
+      resolve(parsedBody);
+    }).catch((error) => {
+      reject(error);
+    })
+  });
+}
+
+exports.setGreetingMessenger = setGreetingMessenger;
+exports.removeMessengerProfileInfos = removeMessengerProfileInfos;
+exports.setGetStarted = setGetStarted;
+exports.readMessengerProfile = readMessengerProfile;
 exports.getInsightsAd = getInsightsAd;
 exports.sendTextWithQuickReplies = sendTextWithQuickReplies;
 exports.sendReceipt = sendReceipt;
