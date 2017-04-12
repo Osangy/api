@@ -31,6 +31,7 @@ exports.manageEntry = function(entry){
     //Remove the entries that does not have a message object
     let rightMessages = [];
     let readMessages = [];
+    let postbackMessages = [];
     entry.messaging.forEach((messagingEvent) => {
 
       //Event with a message
@@ -39,13 +40,16 @@ exports.manageEntry = function(entry){
       }
       else if(messagingEvent.postback){
         logging.info("WE HAVE A POSTBACK !!!");
+        if(messagingEvent.postback.payload === "GET_STARTED"){
+          logging.info("Start postback");
+          postbackMessages.push(messagingEvent);
+        }
       }
       else if(messagingEvent.read){
         readMessages.push(messagingEvent)
       }
 
       //TODO: Message delivery
-      //TODO: Message read
     });
 
     if(rightMessages.length > 0){
@@ -71,6 +75,9 @@ exports.manageEntry = function(entry){
         reject(err);
       })
     }
+    else if(postbackMessages.length > 0){
+      //TODO: Manage get started postback
+    }
     else{
       resolve();
     }
@@ -93,7 +100,7 @@ function manageMessage(messageObject, shop){
     }
 
 
-    if(messageObject.message.is_echo){sendTextWithQuickReplies
+    if(messageObject.message.is_echo){
       if(messageObject.message.attachments && messageObject.message.attachments[0].payload == null){
         logging.info("Can't treat it for the moment");
         resolve();

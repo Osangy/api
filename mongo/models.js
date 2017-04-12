@@ -1195,7 +1195,7 @@ CartSchema.statics.updateShippingAddress = function(shippingAddress, shop, userI
       if(cart){
 
         cart.shippingAddress = shippingAddress
-        if(cart.shippingAddress.recipientName == null) cart.shippingAddress.recipientName = `${userFound.firstName} ${userFound.lastName}`
+        if(cart.shippingAddress.recipientName == null) cart.shippingAddress.recipientName = `${user.firstName} ${user.lastName}`
         return cart.save();
       }
       //Toherwise we create one

@@ -195,7 +195,7 @@ const rootResolvers = {
     conversation(root, { limit }, context){
       logging.info("Querying Conversations");
       const limitValidator = (limit > 20) ? 10 : limit;
-      return Conversation.find({ shop: context.user._id}).limit(limit);
+      return Conversation.find({ shop: context.user._id}).sort({lastMessageDate : -1}).limit(limit);
     },
     user(root, { facebookId }, context){
       logging.info("Querying User");
