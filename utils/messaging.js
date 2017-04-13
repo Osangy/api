@@ -3,6 +3,7 @@ import Promise from 'bluebird';
 import { Shop, Message, Cart } from '../mongo/models';
 import logging from '../lib/logging';
 import moment from 'moment';
+import rp from 'request-promise';
 import facebook from './facebookUtils'
 import _ from 'lodash';
 
@@ -115,9 +116,45 @@ function sendConfirmationPayment(shop, customer, cart){
 
 }
 
+
+function sendDeliveryUpdate(shop, customer, order){
+
+  let messageData = {
+    recipient: {
+      id: customer.facebookId
+    },
+    message: {
+      text: `Votre commande #${order._id} vient d'être envoyée`,
+      metadata: "orderStatus"
+    },
+    tag: "SHIPPING_UPDATE"
+  };
+
+  return new Promise(function(resolve, reject){
+
+    var options = {
+      uri: 'https://graph.facebook.com/v2.6/me/messages',
+      qs: { access_token: shop.pageToken },
+      method: 'POST',
+      json: messageData
+    }
+
+    rp(options).then((parsedBody) => {
+      logging.info(parsedBody);
+      resolve(order);
+    }).catch((err) => {
+      logging.error(err.message);
+      reject(err);
+    })
+
+  });
+
+}
+
 module.exports = {
   sendInfosAfterAddCart,
   sendInfosCartState,
   sendListPoductsCart,
-  sendConfirmationPayment
+  sendConfirmationPayment,
+  sendDeliveryUpdate
 };

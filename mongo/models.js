@@ -429,7 +429,7 @@ ProductSchema.statics.createProduct = function(data, shop){
         reference : data.reference,
         title: data.title,
         images: data.images.split(","),
-        price: data.price,
+        price: Number(data.price),
       });
 
       if(data.shortDescription) newProduct.shortDescription = data.shortDescription;
@@ -1032,6 +1032,7 @@ const CartSchema = mongoose.Schema({
         ref: 'Variant'
       },
       quantity: Number,
+      individualPrice: Number,
       totalPriceVariant: Number
     }],
     totalPrice: Number,
@@ -1118,7 +1119,7 @@ CartSchema.statics.addProduct = function(variantId, shop, userId){
             if(variant.equals(value.variant)){
               foundOne = true;
               value.quantity++;
-              value.totalPriceVariant += variant.product.price;
+              value.totalPriceVariant = (value.totalPriceVariant * 10 + variant.product.price * 10) / 10;
               return false;
             }
         });
@@ -1127,7 +1128,8 @@ CartSchema.statics.addProduct = function(variantId, shop, userId){
           cart.selections.push({
             variant: variant,
             quantity: 1,
-            totalPriceVariant: variant.product.price
+            totalPriceVariant: variant.product.price,
+            individualPrice: variant.product.price
           });
         }
 
@@ -1149,7 +1151,8 @@ CartSchema.statics.addProduct = function(variantId, shop, userId){
         newCart.selections.push({
           variant: variant,
           quantity: 1,
-          totalPriceVariant: variant.product.price
+          totalPriceVariant: variant.product.price,
+          individualPrice: variant.product.price
         });
 
         newCart.cleanSelections();
@@ -1257,14 +1260,12 @@ CartSchema.statics.updateShippingAddress = function(shippingAddress, shop, userI
 
 CartSchema.methods.updateSelection = function(selection){
 
-  let productPrice = 0;
   const index = _.findIndex(this.selections, (o) => {
     return o.variant.equals(selection.variant)
   });
 
-  productPrice = this.selections[index].totalPriceVariant / this.selections[index].quantity
   this.selections[index].quantity = selection.quantity;
-  this.selections[index].totalPriceVariant = selection.quantity * productPrice
+  this.selections[index].totalPriceVariant = Number(selection.quantity * this.selections[index].individualPrice);
 }
 
 CartSchema.methods.cleanSelections = function(){
@@ -1279,7 +1280,7 @@ CartSchema.methods.cleanSelections = function(){
   let totalPrice = 0;
   _.forEach(this.selections, (selection) => {
     nbProducts += selection.quantity
-    totalPrice += selection.totalPriceVariant
+    totalPrice = (totalPrice * 10 + selection.totalPriceVariant * 10)/10
   })
 
   this.totalPrice = totalPrice;
@@ -1465,7 +1466,7 @@ OrderSchema.methods.updateStatus = function(newStatus){
       finalOrder = order;
 
       if(order.status === OrderStatus.SENT){
-        return sendMessage(order.shop, order.user.facebookId, `Votre commande #${order._id} vient d'être envoyée`, "orderStatus");
+        return messaging.sendDeliveryUpdate(order.shop, order.user,  order);
       }
       else{
         resolve(finalOrder)

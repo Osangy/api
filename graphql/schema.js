@@ -4,6 +4,7 @@ import { merge, reverse } from 'lodash';
 import { User, Message, Conversation, Cart, Product, Variant, Shop, Order, Ad } from '../mongo/models';
 import facebook from '../utils/facebookUtils';
 import shop from '../utils/shop';
+import messaging from '../utils/messaging';
 import logging from '../lib/logging';
 import Promise from 'bluebird';
 import { pubsub } from './subscriptions';
@@ -117,6 +118,9 @@ const rootSchema = [`
 
     # Send test button to webview
     payCart(cartId: ID!): Boolean
+
+    #Send info about the cart to the customer
+    sendCartInfos(userId:ID!): Boolean
 
     # Create a fake Cart
     createFakeCart(userId:ID!, price: Float): Cart
@@ -367,6 +371,19 @@ const rootResolvers = {
           true
         ));
     },
+    sendCartInfos(root, { userId }, context){
+      logging.info("Mutation : Send Infos Cart");
+      return Promise.resolve()
+        .then(() => (
+           User.findById(userId)
+        ))
+        .then((user) => (
+          messaging.sendInfosCartState(context.user, user)
+        ))
+        .then(() => (
+          true
+        ));
+    },
     createFakeCart(root, { userId, price }, context){
       return Promise.resolve()
         .then(() => (
@@ -384,6 +401,7 @@ const rootResolvers = {
         })
         .then((order) => (
           order.updateStatus(newStatus)
+          //messaging.sendDeliveryUpdate(context.user, order.user, order)
         ))
         .then((order) => {
           console.log(order._id);
