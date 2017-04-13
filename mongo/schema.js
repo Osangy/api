@@ -104,6 +104,9 @@ export const schema = [`
     #If he is still unknown and not available to send message to
     isUnknown: Boolean
 
+    #Last Message Sent by this user
+    lastMessageSentDate: Float
+
     createdAt: Float
 
   }
@@ -366,6 +369,14 @@ export const resolvers = {
     product({product}, _, context){
       return Product.findById(product);
     }
+  },
+  User:{
+    adSource({adSource}, _, context){
+      return Ad.findById(adSource);
+    },
+    lastMessageSentDate({lastMessageSentDate}, _, context){
+      return moment(lastMessageSentDate).valueOf();
+    },
   },
   JSON: GraphQLJSON,
 };

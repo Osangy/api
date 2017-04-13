@@ -257,7 +257,7 @@ const rootResolvers = {
     ad(root, {adId}, context){
       return Promise.resolve()
         .then(() => (
-          Ad.findById(adId)
+          Ad.findOne({adId : adId})
         ))
         .then((ad) => (
           ad

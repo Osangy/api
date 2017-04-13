@@ -59,6 +59,7 @@ const UserSchema = mongoose.Schema({
     gender: String,
     lastShippingAddress : addressSchema,
     lastUpdate: Date,
+    lastMessageSentDate: Date,
     adSource : {
       type: Schema.Types.ObjectId,
       ref: 'Ad'
@@ -618,20 +619,9 @@ MessageSchema.pre('save', function (next) {
 MessageSchema.post('save', function(message, next) {
   if(this.wasNew){
     analytics.trackMessage(this);
-    Conversation.findById(message.conversation).then((conversation) => {
-      conversation.nbMessages++;
-      if(!message.isEcho){
-        conversation.nbUnreadMessages++;
-      }
-      conversation.lastMessageDate = moment();
-      return conversation.save();
-    }).then((conversation) => {
-      if(conversation.isAvailable) pubsub.publish('newConversationChannel', conversation);
-      if(conversation.nbMessages === 1) return mailgun.sendNewConversationMail(message.shop.email, this);
-      else next();
-    }).then(() => {
+    Conversation.newMessage(this).finally(() => {
       next();
-    });
+    })
   }
   else{
     next();
@@ -856,39 +846,51 @@ MessageSchema.methods.manageAttachments = function(attachments){
   * CONVERSATION SCHEMA
   */
 
-  const ConversationSchema = mongoose.Schema({
-      shop: {
-        type: Schema.Types.ObjectId,
-        ref: 'Shop',
-        index: true
-      },
-      user: {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
-        index: true
-      },
-      sources : [{
-        type: Schema.Types.ObjectId,
-        ref: 'Source'
-      }],
-      nbMessages: {
-        type: Number,
-        default: 0
-      },
-      isAvailable: {
-        type: Boolean,
-        default: false
-      },
-      lastCustomerRead: Date,
-      nbUnreadMessages: {
-        type: Number,
-        default: 0
-      },
-      lastMessageDate: Date
+const ConversationSchema = mongoose.Schema({
+    shop: {
+      type: Schema.Types.ObjectId,
+      ref: 'Shop',
+      index: true
     },
-    {
-      timestamps: true
-    });
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      index: true
+    },
+    sources : [{
+      type: Schema.Types.ObjectId,
+      ref: 'Source'
+    }],
+    nbMessages: {
+      type: Number,
+      default: 0
+    },
+    isAvailable: {
+      type: Boolean,
+      default: false
+    },
+    lastCustomerRead: Date,
+    nbUnreadMessages: {
+      type: Number,
+      default: 0
+    },
+    lastMessageDate: Date
+  },
+  {
+    timestamps: true
+  });
+
+ConversationSchema.pre('save', function (next) {
+    this.newAvailable = this.isModified("isAvailable");
+    next();
+});
+
+//After a message save we increment the nb of message of the conversation
+ConversationSchema.post('save', function(message) {
+  if(this.newAvailable){
+    //mailgun.sendNewConversationMail(message.shop.email, message)
+  }
+});
 
 /*
 * Find a conversation, or create if it does not exists.
@@ -962,6 +964,43 @@ ConversationSchema.statics.justRead = function(pageId, userFbId, watermark){
       return conversation.save();
     }).then((conversation) => {
       resolve(conversation)
+    }).catch((err) => {
+      reject(err);
+    })
+
+  });
+
+
+}
+
+/*
+* Update conversation after new message
+*/
+
+ConversationSchema.statics.newMessage = function(message){
+
+  return new Promise(function(resolve, reject){
+
+    let actions = [];
+
+    Conversation.findById(message.conversation).populate("user shop").then((conversation) => {
+      conversation.nbMessages++;
+
+      if(!message.isEcho){
+        conversation.nbUnreadMessages++;
+        conversation.user.lastMessageSentDate = message.timestamp;
+        actions.push(conversation.user.save());
+      }
+
+      conversation.lastMessageDate = message.timestamp;
+      actions.push(conversation.save())
+
+      if(conversation.isAvailable) pubsub.publish('newConversationChannel', conversation);
+      //if(conversation.nbMessages === 1) actions.push(mailgun.sendNewConversationMail(message.shop.email, message));
+
+      return Promise.all(actions);
+    }).then(() => {
+      resolve()
     }).catch((err) => {
       reject(err);
     })
