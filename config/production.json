@@ -9,5 +9,5 @@
   "SOCKET_PORT" : 8443,
   "STRIPE_PUB_KEY" : "pk_test_UV9YSjMjAHd5AerCCLBbTp7Y",
   "STRIPE_SECRET_KEY" : "sk_test_44hmiFYTzUMKyjuu09DkDNtK",
-  "STRIPE_CLIENT_ID" : "ca_A5n5fmF9L5B2Tu3Fw4zsrsp13bRtubKG",
+  "STRIPE_CLIENT_ID" : "ca_A5n5fmF9L5B2Tu3Fw4zsrsp13bRtubKG"
 }

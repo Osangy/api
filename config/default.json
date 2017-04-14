@@ -26,5 +26,4 @@
     "MAILGUN_API_KEY": "key-dac48d7258c32a0a56bfd7dfbd85cd21",
     "MAILGUN_DOMAIN": "sandbox0f8872ad4289494da0508002740f60a4.mailgun.org",
     "MAILGUN_FROM_EMAIL": "adrien@sandbox0f8872ad4289494da0508002740f60a4.mailgun.org"
-
 }
