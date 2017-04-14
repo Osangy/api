@@ -255,7 +255,10 @@ const ShopSchema = new Schema({
       required: true
     },
     closedAutoOption : {
-      isActivated: Boolean,
+      isActivated: {
+        type: Boolean,
+        default: false
+      },
       startHour: Number,
       endHour: Number,
       message: String
