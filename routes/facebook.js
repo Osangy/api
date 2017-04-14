@@ -141,7 +141,7 @@ exports.messengerInfos = function(req, res){
       res.status(500).send("No Shop with this page id");
     }
     else{
-      setGreetingMessenger(shop, "Bébé Tshirt, la boutique de vos petits bout de chou 👶🏻").then((body) => {
+      setGetStarted(shop).then((body) => {
         res.send(body);
       }).catch((err) => {
         res.status(500).send(err.message);
