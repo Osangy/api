@@ -77,6 +77,24 @@ exports.manageEntry = function(entry){
     }
     else if(postbackMessages.length > 0){
       //TODO: Manage get started postback
+      Shop.findOne({ pageId: pageID }, (err, shop) => {
+        if(err) reject(err);
+
+        const messageData = {
+          recipient: {
+            id: postbackMessages[0].sender.id
+          },
+          message: {
+            text: "Bienvenue. Comment pouvons nous vous aider ? Vous avez peut être besoin d'un conseil pour un produit ?"
+          }
+        };
+
+        send(messageData, shop.pageToken).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        })
+      });
     }
     else{
       resolve();
@@ -594,14 +612,14 @@ function getPages(userId, longToken){
 // Facebook Get Pages of the user
 //========================================
 
-function subscribePageToApp(pageToken){
+function subscribePageToApp(shop){
   return new Promise((resolve, reject) => {
 
     const uri = `https://graph.facebook.com/v2.8/me/subscribed_apps`;
     const options = {
       uri: uri,
       qs: {
-        access_token: pageToken
+        access_token: shop.pageToken
       },
       json: true,
       method: 'POST'
@@ -611,9 +629,11 @@ function subscribePageToApp(pageToken){
       logging.info("Subscribded to page :");
       logging.info(parsedBody);
 
-      return whitelistDomains(pageToken);
-    }).then((parsedBody) => {
-      resolve(parsedBody);
+      return whitelistDomains(shop.pageToken);
+    }).then(() => {
+      return setGetStarted(shop)
+    }).then(() => {
+      resolve();
     }).catch((error) => {
       reject(error);
     })
@@ -743,7 +763,10 @@ function setGetStarted(shop){
     rp(options).then((parsedBody) => {
       logging.info("Added get started");
       logging.info(parsedBody);
-      resolve(parsedBody);
+      shop.isGetStartedActivated = true;
+      return shop.save();
+    }).then((shop) => {
+      resolve(shop);
     }).catch((error) => {
       reject(error);
     })
@@ -779,6 +802,7 @@ function setGreetingMessenger(shop, text){
     })
   });
 }
+
 
 exports.setGreetingMessenger = setGreetingMessenger;
 exports.removeMessengerProfileInfos = removeMessengerProfileInfos;

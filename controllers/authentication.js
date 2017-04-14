@@ -100,8 +100,8 @@ exports.register = function(req, res, next) {
 
         logging.info(shop.pageToken);
         //Once saved, we subscribe the app to the page
-        return subscribePageToApp(shop.pageToken);
-      }).then(function(){
+        return subscribePageToApp(shop);
+      }).then(() => {
 
         const shopInfos = setShopInfo(shop);
         logging.info("Passed subscribe to page");

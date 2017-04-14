@@ -1,5 +1,5 @@
 import config from 'config';
-import { manageEntry, sendMessage, sendAction, sendImage, getLongToken, getPages, subscribePageToApp, readMessengerProfile, setGetStarted, setGreetingMessenger } from '../utils/facebookUtils';
+import { manageEntry, sendMessage, sendAction, sendImage, getLongToken, getPages, subscribePageToApp, readMessengerProfile, setGetStarted, setGreetingMessenger, removeMessengerProfileInfos } from '../utils/facebookUtils';
 import prettyjson from 'prettyjson';
 import logging from '../lib/logging';
 import Promise from 'bluebird';
@@ -142,6 +142,31 @@ exports.messengerInfos = function(req, res){
     }
     else{
       setGetStarted(shop).then((body) => {
+        res.send(body);
+      }).catch((err) => {
+        res.status(500).send(err.message);
+      })
+    }
+  }).catch((err) => {
+    res.status(500).send(err.message);
+  })
+
+}
+
+
+/*
+* Remove Get Started
+*/
+
+exports.removeGetStarted = function(req, res){
+
+
+  Shop.findOne({ pageId : req.params.pageId}).then((shop) => {
+    if(!shop){
+      res.status(500).send("No Shop with this page id");
+    }
+    else{
+      removeMessengerProfileInfos(shop, ["get_started"]).then((body) => {
         res.send(body);
       }).catch((err) => {
         res.status(500).send(err.message);

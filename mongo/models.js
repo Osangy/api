@@ -277,7 +277,11 @@ const ShopSchema = new Schema({
     pageId: { type: String },
     pageToken: { type: String },
     resetPasswordToken: { type: String },
-    resetPasswordExpires: { type: Date }
+    resetPasswordExpires: { type: Date },
+    isGetStartedActivated: {
+      type: Boolean,
+      default: false
+    }
   },
   {
     timestamps: true
