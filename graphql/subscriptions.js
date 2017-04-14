@@ -37,7 +37,7 @@ const subscriptionManager = new SubscriptionManager({
     }),
     conversationModified: (options, args) => ({
         newConversationChannel: {
-          filter : conversation => conversation.shop.toString() === args.shopId,
+          filter : conversation => conversation.shop._id === args.shopId,
         },
         newMessageInConversationChannel: {
           filter : conversation => conversation.shop.toString() === args.shopId,

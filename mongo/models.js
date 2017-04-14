@@ -956,13 +956,14 @@ ConversationSchema.statics.justRead = function(pageId, userFbId, watermark){
       if(!user) resolve();
 
       foundUser = user;
-      return Conversation.findOne({user : user, shop : foundShop})
+      return Conversation.findOne({user : user, shop : foundShop}).populate("shop");
     }).then((conversation) => {
       if(!conversation) resolve();
 
       conversation.lastCustomerRead = new Date(watermark);
       return conversation.save();
     }).then((conversation) => {
+      pubsub.publish('newConversationChannel', conversation);
       resolve(conversation)
     }).catch((err) => {
       reject(err);
@@ -995,7 +996,9 @@ ConversationSchema.statics.newMessage = function(message){
       conversation.lastMessageDate = message.timestamp;
       actions.push(conversation.save())
 
-      if(conversation.isAvailable) pubsub.publish('newConversationChannel', conversation);
+      if(conversation.isAvailable){
+        pubsub.publish('newConversationChannel', conversation);
+      }
       //if(conversation.nbMessages === 1) actions.push(mailgun.sendNewConversationMail(message.shop.email, message));
 
       return Promise.all(actions);

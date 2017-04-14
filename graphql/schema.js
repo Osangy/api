@@ -207,7 +207,7 @@ const rootResolvers = {
     },
     products(root, { limit, searchString }, context){
       logging.info("Querying products");
-      const limitValidator = (limit > 20) ? 20 : limit;
+      const limitValidator = (limit > 40) ? 40 : limit;
 
       if(!searchString){
         return Product.find({ shop: context.user._id}).limit(limit);
