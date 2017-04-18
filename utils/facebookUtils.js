@@ -55,6 +55,7 @@ exports.manageEntry = function(entry){
     if(rightMessages.length > 0){
       Shop.findOne({ pageId: pageID }, (err, shop) => {
         if(err) reject(err);
+        if(!shop) reject(new Error("Does not have a page with this ID"));
 
         //Mark the messages as received
         if(!rightMessages[0].message.is_echo) sendAction(shop, rightMessages[0].sender.id);
