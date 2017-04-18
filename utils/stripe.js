@@ -10,7 +10,7 @@ function chargeForShop(shop, amount, token, description){
   logging.info(shop.stripe.stripe_user_id);
 
   return new Promise((resolve, reject) => {
-    const amountStripe = amount * 100;
+    const amountStripe = (amount * 10 * 100)/10;
 
     //Take a fee of 1% for us
     const fees = (amountStripe * config.APP_FEES);

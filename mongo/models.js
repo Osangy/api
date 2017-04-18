@@ -893,9 +893,20 @@ ConversationSchema.pre('save', function (next) {
 });
 
 //After a message save we increment the nb of message of the conversation
-ConversationSchema.post('save', function(message) {
+ConversationSchema.post('save', function(conversation) {
   if(this.newAvailable){
-    //mailgun.sendNewConversationMail(message.shop.email, message)
+    Shop.findById(conversation.shop).then((shop) => {
+      if(shop){
+        mailgun.sendNewConversationMail(shop.email, null).then(() => {
+          logging.info("Email for new conversation sent");
+        }).catch((err) => {
+          logging.error(err.message);
+        })
+      }
+    }).catch((err) => {
+      logging.error(err.message);
+    })
+
   }
 });
 

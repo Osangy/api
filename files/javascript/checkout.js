@@ -74,7 +74,9 @@ function payWithToken(token, cartId){
       leaveTab();
     }
     else{
-      setSuccessOutcome();
+      document.getElementById("buttonPay").disabled = true;
+      var successElement = document.getElementById('card-success');
+      successElement.textContent = "Votre paiement a bien été validé. Vous pouvez fermer cette page.";
     }
   })
   .catch(function (error) {
