@@ -1399,7 +1399,7 @@ OrderSchema.post('save', function () {
         if(this.user.adSource != null){
           Ad.findById(this.user.adSource).then((ad) => {
             ad.nbOrders++
-            ad.amountOrders += this.price;
+            ad.amountOrders = (ad.amountOrders * 10 + this.price * 10)/10;
             ad.save();
           });
         }

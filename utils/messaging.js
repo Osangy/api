@@ -151,7 +151,56 @@ function sendDeliveryUpdate(shop, customer, order){
 
 }
 
+
+function sendActionWhenGetStarted(shop, futurRecipientId){
+
+  return new Promise((resolve, reject) => {
+    const messageData = {
+      recipient: {
+        id: futurRecipientId
+      },
+      message: {
+        text: "Bienvenue 🙌. Comment pouvons nous vous aider ?",
+        quick_replies: [
+          {
+            content_type: "text",
+            title: "Infos produits ❔",
+            payload: "GET_STARTED:INFOS"
+          },
+          {
+            content_type: "text",
+            title: "Idées cadeaux 🎁",
+            payload: "GET_STARTED:GIFT"
+          },
+          {
+            content_type: "text",
+            title: "Après vente 🙊",
+            payload: "GET_STARTED:SAV"
+          },
+          {
+            content_type: "text",
+            title: "Des bisous 😘",
+            payload: "GET_STARTED:LOVE"
+          }
+        ]
+      }
+    };
+
+    facebook.send(messageData, shop.pageToken).then(() => {
+      resolve();
+    }).catch((err) => {
+      reject(err);
+    });
+
+  });
+
+
+
+
+}
+
 module.exports = {
+  sendActionWhenGetStarted,
   sendInfosAfterAddCart,
   sendInfosCartState,
   sendListPoductsCart,

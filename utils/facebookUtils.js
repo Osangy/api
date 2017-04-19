@@ -9,6 +9,7 @@ import moment from 'moment';
 import { pubsub } from '../graphql/subscriptions';
 import background from '../lib/background';
 import messaging from './messaging';
+import _ from 'lodash';
 
 Promise.promisifyAll(require("mongoose"));
 
@@ -53,6 +54,7 @@ exports.manageEntry = function(entry){
     });
 
     if(rightMessages.length > 0){
+      logging.info(`The page ID is ${pageID}`)
       Shop.findOne({ pageId: pageID }, (err, shop) => {
         if(err) reject(err);
         if(!shop) reject(new Error("Does not have a page with this ID"));
@@ -80,17 +82,8 @@ exports.manageEntry = function(entry){
       //TODO: Manage get started postback
       Shop.findOne({ pageId: pageID }, (err, shop) => {
         if(err) reject(err);
-
-        const messageData = {
-          recipient: {
-            id: postbackMessages[0].sender.id
-          },
-          message: {
-            text: "Bienvenue. Comment pouvons nous vous aider ? Vous avez peut être besoin d'un conseil pour un produit ?"
-          }
-        };
-
-        send(messageData, shop.pageToken).then(() => {
+        if(!shop) reject(new Error(`No shop with this id : ${pageID}`));
+        messaging.sendActionWhenGetStarted(shop, postbackMessages[0].sender.id).then(() => {
           resolve();
         }).catch((err) => {
           reject(err);
@@ -172,7 +165,10 @@ function managePayloadAction(shop, user, payload){
 
   return new Promise((resolve, reject) => {
 
-    switch (payload) {
+    const spliitedPayload = _.split(payload, ':');
+    const introPayload = spliitedPayload[0];
+
+    switch (introPayload) {
       case config.PAYLOAD_INFOS_CART:
         messaging.sendInfosCartState(shop, user).then(() => {
           resolve();
@@ -189,6 +185,27 @@ function managePayloadAction(shop, user, payload){
         });
 
         break;
+
+      case "GET_STARTED":
+        if(spliitedPayload.length < 2) break;
+
+        switch(spliitedPayload[1]){
+          case "LOVE":
+            logging.info("SEND LOVE");
+            break;
+          case "GIFT":
+            logging.info("WANT GIFT");
+            break;
+          case "SAV":
+            logging.info("NEED SAV");
+            break;
+          case "INFOS":
+            logging.info("WANT INFOS");
+            break;
+        }
+        break;
+
+
       default:
         logging.info("Does not know this payload");
     }
@@ -535,7 +552,12 @@ function send(messageData, pageToken){
       json: messageData
     }
 
+    console.log("Sending");
+    console.log(messageData);
+
     rp(options).then((parsedBody) => {
+      console.log("RESPONSE");
+      console.log(parsedBody);
       resolve(parsedBody);
     }).catch((err) => {
       reject(err);
@@ -804,7 +826,7 @@ function setGreetingMessenger(shop, text){
   });
 }
 
-
+exports.send = send;
 exports.setGreetingMessenger = setGreetingMessenger;
 exports.removeMessengerProfileInfos = removeMessengerProfileInfos;
 exports.setGetStarted = setGetStarted;
