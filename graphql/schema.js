@@ -137,6 +137,9 @@ const rootSchema = [`
     #Update infos about a user
     updateUserInfos(userId:ID!, email:String!, phoneNumber:String!): User
 
+    #Let the customer knows if user is typing
+    agentTyping(userFacebookId:String!, typing:Boolean!): Boolean
+
   }
 
   type Subscription {
@@ -444,6 +447,16 @@ const rootResolvers = {
           return User.findByIdAndUpdate(userId, {email : email, phoneNumber : phoneNumber}, {new: true});
         }).then((user) => (
           user
+        ))
+    },
+    agentTyping(root, {userFacebookId, typing}, context){
+      return Promise.resolve()
+        .then(() => {
+          if(typing) return facebook.sendAction(context.user, userFacebookId, "typing_on");
+          else return facebook.sendAction(context.user, userFacebookId, "typing_off");
+        })
+        .then(() => (
+          true
         ))
     }
   },
