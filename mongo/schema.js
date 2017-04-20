@@ -90,6 +90,10 @@ export const schema = [`
     firstName: String
     # The last name of the user
     lastName: String
+    #User email
+    email: String
+    #User phone number
+    phoneNumber: String
     # The profile picture (url) of the user
     profilePic: String
     # The locale info of the user provided by Facebook

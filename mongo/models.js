@@ -53,6 +53,8 @@ const UserSchema = mongoose.Schema({
     },
     firstName: String,
     lastName: String,
+    email: String,
+    phoneNumber: String,
     profilePic: String,
     locale: String,
     timezone: Number,
@@ -477,22 +479,30 @@ ProductSchema.statics.createProduct = function(data, shop){
 
 ProductSchema.statics.searchProducts = function(searchString, shop, limit){
 
-  console.log("searchString");
 
   let andSearch = [];
   _.split(searchString, " ").map((word) => {
     andSearch.push({title : { "$regex" : '.*'+word+'.*', "$options" : "i" } })
   });
 
-  logging.info(andSearch);
-
   return new Promise((resolve, reject) => {
-    Product.find({ shop : shop, "$and" : andSearch}).limit(limit).then((products) => {
+
+    Product.find({
+      $and: [
+        {shop: shop},
+        {$or : [
+          { $and : andSearch},
+          { categories: {$in : _.split(searchString, " ")}}
+        ]}
+      ]}
+    ).limit(limit).then((products) => {
       resolve(products);
     }).catch((err) => {
       reject(err);
-    })
+    });
   });
+
+
 
 
 

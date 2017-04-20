@@ -119,33 +119,51 @@ function sendConfirmationPayment(shop, customer, cart){
 
 function sendDeliveryUpdate(shop, customer, order){
 
-  let messageData = {
+  let messageDataText = {
     recipient: {
       id: customer.facebookId
     },
     message: {
-      text: `Votre commande #${order._id} vient d'être envoyée`,
+      text: `Bonjour 🙌. Votre commande vient d'être envoyée 🎉`,
       metadata: "orderStatus"
     },
     tag: "SHIPPING_UPDATE"
   };
 
-  return new Promise(function(resolve, reject){
+  let messageDataGif = {
+    recipient: {
+      id: customer.facebookId
+    },
+    message: {
+      attachment: {
+        type: "image",
+        payload: {
+          url: "https://media.giphy.com/media/11sBLVxNs7v6WA/giphy.gif"
+        }
+      },
+      metadata: "orderStatus"
+    },
+    tag: "SHIPPING_UPDATE"
+  };
 
-    var options = {
-      uri: 'https://graph.facebook.com/v2.6/me/messages',
-      qs: { access_token: shop.pageToken },
-      method: 'POST',
-      json: messageData
-    }
 
-    rp(options).then((parsedBody) => {
-      logging.info(parsedBody);
-      resolve(order);
+  return new Promise((resolve, reject) => {
+
+    facebook.send(messageDataText, shop.pageToken).then(() => {
+      return facebook.send(messageDataGif, shop.pageToken);
+    }).then(() => {
+      resolve();
     }).catch((err) => {
-      logging.error(err.message);
       reject(err);
     })
+
+    // rp(options).then((parsedBody) => {
+    //   logging.info(parsedBody);
+    //   resolve(order);
+    // }).catch((err) => {
+    //   logging.error(err.message);
+    //   reject(err);
+    // })
 
   });
 

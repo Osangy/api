@@ -134,6 +134,9 @@ const rootSchema = [`
     #Create a new Ad
     createFacebookAd(adId: String!): AdResponse
 
+    #Update infos about a user
+    updateUserInfos(userId:ID!, email:String!, phoneNumber:String!): User
+
   }
 
   type Subscription {
@@ -203,18 +206,16 @@ const rootResolvers = {
     },
     user(root, { facebookId }, context){
       logging.info("Querying User");
-      return User.findOne({ facebook_id: facebookId });
+      return User.findOne({ facebookId: facebookId });
     },
     products(root, { limit, searchString }, context){
       logging.info("Querying products");
-      const limitValidator = (limit > 40) ? 40 : limit;
+      const limitValidator = (limit > 60) ? 60 : limit;
 
       if(!searchString){
         return Product.find({ shop: context.user._id}).limit(limit);
       }
       else{
-        logging.info("Search String");
-        logging.info(searchString);
         return Product.searchProducts(searchString, context.user, limit);
       }
     },
@@ -436,6 +437,14 @@ const rootResolvers = {
           });
         })
       });
+    },
+    updateUserInfos(root, {userId, email, phoneNumber}, context){
+      return Promise.resolve()
+        .then(() => {
+          return User.findByIdAndUpdate(userId, {email : email, phoneNumber : phoneNumber}, {new: true});
+        }).then((user) => (
+          user
+        ))
     }
   },
   Subscription: {

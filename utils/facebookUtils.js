@@ -248,32 +248,6 @@ exports.getFacebookUserInfos = function(shop, userId){
       logging.error("Request error : " + err.message);
       reject(err);
     })
-
-    // //Request FB API
-    // request({
-    //   uri: uri,
-    //   qs: {
-    //     fields: 'first_name,last_name,profile_pic,locale,timezone,gender,last_ad_referral',
-    //     access_token: shop.pageToken
-    //   },
-    //   json: true,
-    //   method: 'GET'
-    // }, function(error, response, body){
-    //
-    //   if(!error && response.statusCode == 200){
-    //     logging.info(body);
-    //     resolve(body);
-    //   }
-    //   else if(error){
-    //     logging.error("Request error : " + error);
-    //     reject(error);
-    //   }
-    //   else{
-    //     logging.info(body);
-    //     resolve({});
-    //   }
-    //
-    // });
   });
 
 }
