@@ -1611,11 +1611,10 @@ OrderSchema.methods.getSelectionsForFacebook = () => {
           return selection.variant.equals(o._id); }
         );
         let variant = variants[index];
-        const titleVariant = variant.getTitle();
 
         if(variant){
           let elementObject = {
-            'title' : titleVariant,
+            'title' : variant.getTitle(),
             'subtitle' : variant.product.shortDescription,
             'quantity' : selection.quantity,
             'price' : selection.totalPriceVariant,
