@@ -1,7 +1,7 @@
 import config from 'config';
 import Promise from 'bluebird';
 import {parseAccessTokenResponse} from './other';
-import { Shop, Message, Conversation } from '../mongo/models';
+import { Shop, Message, Conversation, Product } from '../mongo/models';
 import logging from '../lib/logging';
 import request from 'request';
 import rp from 'request-promise';
@@ -41,10 +41,7 @@ exports.manageEntry = function(entry){
       }
       else if(messagingEvent.postback){
         logging.info("WE HAVE A POSTBACK !!!");
-        if(messagingEvent.postback.payload === "GET_STARTED"){
-          logging.info("Start postback");
-          postbackMessages.push(messagingEvent);
-        }
+        postbackMessages.push(messagingEvent);
       }
       else if(messagingEvent.read){
         readMessages.push(messagingEvent)
@@ -79,15 +76,19 @@ exports.manageEntry = function(entry){
       })
     }
     else if(postbackMessages.length > 0){
-      //TODO: Manage get started postback
       Shop.findOne({ pageId: pageID }, (err, shop) => {
         if(err) reject(err);
         if(!shop) reject(new Error(`No shop with this id : ${pageID}`));
-        messaging.sendActionWhenGetStarted(shop, postbackMessages[0].sender.id).then(() => {
+
+
+        Promise.each(postbackMessages, (messagingEvent) => {
+          return managePostback(shop, messagingEvent);
+        }).then(() => {
           resolve();
-        }).catch((err) => {
-          reject(err);
-        })
+        }).catch((error) => {
+          reject(error);
+        });
+
       });
     }
     else{
@@ -205,6 +206,20 @@ function managePayloadAction(shop, user, payload){
         }
         break;
 
+      case "BUY_PRODUCT":
+        if(spliitedPayload.length < 2) break;
+        else{
+          Product.findOne({reference : spliitedPayload[1]}).then((product) => {
+            if(!product) reject(new Error("No product with this id found"));
+            return sendMessage(shop, user.facebookId, product.longDescription, null);
+          }).then(() => {
+            resolve();
+          }).catch((err) => {
+            reject(err);
+          })
+        }
+        break;
+
 
       default:
         logging.info("Does not know this payload");
@@ -212,6 +227,70 @@ function managePayloadAction(shop, user, payload){
 
   });
 
+}
+
+
+/*
+Manage Postback
+*/
+
+function managePostback(shop, message){
+
+  const payload = message.postback.payload;
+  const customerFacebookId = message.sender.id;
+
+  return new Promise((resolve, reject) => {
+
+    const spliitedPayload = _.split(payload, ':');
+    const introPayload = spliitedPayload[0];
+
+
+    switch (introPayload) {
+
+      //Get started with the shop conversation
+      case "GET_STARTED":
+        messaging.sendActionWhenGetStarted(shop, customerFacebookId).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        });
+        break;
+
+
+      case "BUY_PRODUCT":
+        if(spliitedPayload.length < 2) break;
+        else{
+          Product.findOne({reference : spliitedPayload[1]}).then((product) => {
+            if(!product) reject(new Error("No product with this id found"));
+            return sendMessage(shop, customerFacebookId, product.longDescription, null);
+          }).then(() => {
+            resolve();
+          }).catch((err) => {
+            reject(err);
+          })
+        }
+        break;
+
+      case "MORE_INFOS":
+        if(spliitedPayload.length < 2) break;
+        else{
+          Product.findOne({reference : spliitedPayload[1]}).then((product) => {
+            if(!product) reject(new Error("No product with this id found"));
+            return sendMessage(shop, customerFacebookId, product.longDescription, null);
+          }).then(() => {
+            resolve();
+          }).catch((err) => {
+            reject(err);
+          })
+        }
+        break;
+
+      default:
+        logging.info("Does not know this postback");
+    }
+
+
+  });
 }
 
 /*
@@ -514,6 +593,58 @@ function sendReceipt(order){
 }
 
 
+function sendCarousel(pageToken, userFacebookId){
+
+  const messageData = {
+    recipient: {
+      id: userFacebookId
+    },
+    message: {
+      attachment: {
+        type: "template",
+        payload: {
+          template_type: "generic",
+          image_aspect_ratio: "square",
+          elements: [
+            {
+              title: "BAVOIR PAPA TU PIQUES BLEU",
+              image_url: "https://www.bebetshirt.com/6696-thickbox_default/bavoir-papa-tu-piques.jpg",
+              subtitle: "Prix : 14€",
+              buttons: [{
+                type: "postback",
+                title: "Plus d'infos",
+                payload: "MORE_INFOS:bavoir_papa_tu_piques_bleu"
+              }]
+            },
+            {
+              title: "BODY FUTUR TOMBEUR BLANC",
+              image_url: "https://www.bebetshirt.com/3500-thickbox_default/futur-tombeur.jpg",
+              subtitle: "Prix : 18,90€",
+              buttons: [{
+                type: "postback",
+                title: "Plus d'infos",
+                payload: "MORE_INFOS:body_futur_tombeur_blanc"
+              }]
+            }
+          ]
+        }
+      }
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    send(messageData, pageToken).then((parsedBody) => {
+      logging.info(parsedBody);
+      resolve(parsedBody);
+    }).catch((err) => {
+      logging.error(err.message);
+      reject(err);
+    })
+  })
+
+}
+
+
 
 function send(messageData, pageToken){
 
@@ -800,6 +931,7 @@ function setGreetingMessenger(shop, text){
   });
 }
 
+exports.sendCarousel = sendCarousel;
 exports.send = send;
 exports.setGreetingMessenger = setGreetingMessenger;
 exports.removeMessengerProfileInfos = removeMessengerProfileInfos;

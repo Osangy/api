@@ -11,7 +11,7 @@ Promise.promisifyAll(require("mongoose"));
 
 function sendInfosAfterAddCart(variant, shop, customer, cart){
 
-  const firstMessage = `👉 ${variant.title}, d'un montant de ${variant.price}€, vient d'être ajouté à votre panier 🛒`;
+  const firstMessage = `👉 ${variant.getTitle()}, d'un montant de ${variant.price}€, vient d'être ajouté à votre panier 🛒`;
 
   return new Promise((resolve, reject) => {
 
@@ -58,7 +58,6 @@ function sendInfosCartState(shop, customer){
       reject(err);
     });
 
-
   });
 
 }
@@ -75,11 +74,11 @@ function sendListPoductsCart(shop, customer){
       let message = '';
       cart.selections.forEach((selection) => {
         if(selection.quantity === 1){
-          const newMessage = `✔️ ${selection.variant.title} / Prix : ${selection.totalPriceVariant}€\n`;
+          const newMessage = `✔️ ${selection.variant.getTitle()} / Prix : ${selection.totalPriceVariant}€\n`;
           message += newMessage;
         }
         else{
-          const newMessage = `✔️ ${selection.variant.title}, en ${selection.quantity} exemplaires / Prix : ${selection.totalPriceVariant}€\n`;
+          const newMessage = `✔️ ${selection.variant.getTitle()}, en ${selection.quantity} exemplaires / Prix : ${selection.totalPriceVariant}€\n`;
           message += newMessage;
         }
       });
@@ -157,14 +156,6 @@ function sendDeliveryUpdate(shop, customer, order){
       reject(err);
     })
 
-    // rp(options).then((parsedBody) => {
-    //   logging.info(parsedBody);
-    //   resolve(order);
-    // }).catch((err) => {
-    //   logging.error(err.message);
-    //   reject(err);
-    // })
-
   });
 
 }
@@ -211,8 +202,6 @@ function sendActionWhenGetStarted(shop, futurRecipientId){
     });
 
   });
-
-
 
 
 }

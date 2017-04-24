@@ -166,6 +166,18 @@ export const schema = [`
     #The product price
     price: Float
 
+    #If has color variants
+    hasColorVariants: Boolean
+
+    #If has size variants
+    hasSizeVariants: Boolean
+
+    #Colors variants
+    colors: [String]
+
+    #Sizes variants
+    sizes: [String]
+
   }
   # The cart of a user
   type Cart {
@@ -206,11 +218,23 @@ export const schema = [`
     #The Product
     product: Product!
 
+    #Variant title
+    title: String!
+
+    #Variant color
+    color: String
+
+    #Variant size
+    size: String
+
+    #Variant price
+    price: Float!
+
     #The variance type
     type: String!
 
-    #The value of the variant
-    value: String!
+    #Variant images
+    images: [String]
   }
 
 
@@ -356,6 +380,9 @@ export const resolvers = {
   Variant: {
     product({product}, _, context) {
       return Product.findById(product);
+    },
+    title(variant, _, context){
+      return variant.getTitle();
     }
   },
   Order: {

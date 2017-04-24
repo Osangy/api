@@ -32,21 +32,23 @@ exports.uploadCatalog = function(req, res, next){
         var products = [];
         var stream = fs.createReadStream(req.file.path);
 
-        var csvStream = csv({headers : ["reference", "title", "categories", "shortDescription", "longDescription", "images", "sizes", "price"]})
-              .validate(function(data, next){
+        var csvStream = csv({headers : ["reference", "title", "categories", "shortDescription", "longDescription", "images", "price", "colors", "sizes", "imagesColor1", "imagesColor2", "imagesColor3", "imagesColor4","imagesColor5"]})
+              .validate((data, next) => {
                 console.log(data);
-                Product.createProduct(data, shop).then(function(product){
+                Product.createProduct(data, shop).then((product) => {
                   products.push(data);
                   next(null, product); //valid if the model does not exist
-                }).catch(function(err){
+                }).catch((err) => {
                   console.error(err.message);
                   next(err);
                 });
              })
-            .on("data", function(data){
+            .on("data", (data) => {
+              console.log(data);
             })
-            .on("end", function(){
+            .on("end", () => {
                  console.log("done");
+                 //res.send("OK");
                  res.render("resultImport", {products : products });
             });
 
@@ -55,7 +57,7 @@ exports.uploadCatalog = function(req, res, next){
       else{
         res.status(500).send('No shop with this id !');
       }
-    }).catch(function(err){
+    }).catch((err) => {
       res.status(500).send(err.message);
     });
   }

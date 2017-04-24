@@ -410,14 +410,31 @@ const ProductSchema = mongoose.Schema({
     longDescription : String,
     categories : [String],
     images : [String],
-    price: Number
-  });
+    price: Number,
+    hasColorVariants: {
+      type: Boolean,
+      default: false
+    },
+    hasSizeVariants: {
+      type: Boolean,
+      default: false
+    },
+    colors: [String],
+    sizes: [String],
+    imagesColor: {
+      color1: String,
+      color2: String,
+      color3: String,
+      color4: String,
+      color5: String
+    }
+});
 
-ProductSchema.statics.createProduct = function(data, shop){
+ProductSchema.statics.createProduct = (data, shop) => {
 
 
 
-  return new Promise(function(resolve, reject){
+  return new Promise((resolve, reject) => {
 
     let finalProduct;
 
@@ -426,7 +443,7 @@ ProductSchema.statics.createProduct = function(data, shop){
     }
 
     //We verify if the product does not already exist
-    Product.findOne({ reference : data.reference, shop : shop}).then(function(product){
+    Product.findOne({ reference : data.reference, shop : shop}).then((product) => {
       if(product){
         reject(new Error("This product already exists"));
       }
@@ -442,32 +459,38 @@ ProductSchema.statics.createProduct = function(data, shop){
       });
 
       if(data.shortDescription) newProduct.shortDescription = data.shortDescription;
-      if(data.longDescription) newProduct.longDescription = data.longDescription;
+      if(data.longDescription){
+        const arrayLong = _.split(data.longDescription,"\n");
+        let finalLong= "";
+        arrayLong.map((line) => {
+          finalLong += `<p>${line}</p>`;
+        });
+        newProduct.longDescription = finalLong;
+      }
       if(data.categories) newProduct.categories = data.categories.split(",");
-
+      if(data.colors){
+        newProduct.colors = data.colors.split(",");
+        newProduct.hasColorVariants = true;
+      }
+      if(data.sizes){
+        newProduct.sizes = data.sizes.split(",");
+        newProduct.hasSizeVariants = true;
+      }
+      if(data.imagesColor1) newProduct.imagesColor.color1 = data.imagesColor1;
+      if(data.imagesColor2) newProduct.imagesColor.color2 = data.imagesColor2;
+      if(data.imagesColor3) newProduct.imagesColor.color3 = data.imagesColor3;
+      if(data.imagesColor4) newProduct.imagesColor.color4 = data.imagesColor4;
+      if(data.imagesColor5) newProduct.imagesColor.color5 = data.imagesColor5;
 
       return newProduct.save();
-    }).then(function(product){
+    }).then((product) => {
 
       finalProduct = product;
 
-      const sizes = data.sizes.split(",");
-      let variants = [];
-      if(sizes.length > 0){
-        sizes.forEach(function(size) {
-          variants.push(Variant.createVariantSize(product, size));
-        });
-      }
-      else{
-        //TODO: If no size, create a unique size
-        resolve(finalProduct);
-      }
-
-      return Promise.all(variants)
-
-    }).then(function(){
+      return Variant.createVariants(product);
+    }).then(() => {
       resolve(finalProduct);
-    }).catch(function(error){
+    }).catch((error) => {
       reject(error);
     })
 
@@ -521,7 +544,10 @@ const VariantSchema = mongoose.Schema({
     value: String,
     productTitle : String,
     title: String,
-    price: Number
+    price: Number,
+    color: String,
+    size: String,
+    images: [String]
 });
 
 // VariantSchema.pre('save', function (next) {
@@ -538,18 +564,27 @@ const VariantSchema = mongoose.Schema({
 //   }
 // }
 
-VariantSchema.statics.createVariantSize = (product, size) => {
+VariantSchema.methods.getTitle = function(){
+  let title = this.productTitle;
+  if(this.color) title += ` - Couleur : ${this.color}`;
+  if(this.size) title += ` - Taille : ${this.size}`;
 
-  return new Promise(function(resolve, reject){
+  return title;
+}
+
+VariantSchema.statics.createVariant = (product, color, size, imagesColor) => {
+
+  return new Promise((resolve, reject) => {
 
     let newVariant = new Variant({
       product: product,
-      type: "size",
-      value: size,
       productTitle: product.title,
-      title: `${product.title} - Taille : ${size}`,
       price: product.price
     });
+
+    if(color) newVariant.color = color;
+    if(size) newVariant.size = size;
+    if(imagesColor) newVariant.images = imagesColor;
 
     newVariant.save().then((variant) => {
       resolve(variant);
@@ -558,6 +593,50 @@ VariantSchema.statics.createVariantSize = (product, size) => {
     })
 
   });
+}
+
+VariantSchema.statics.createVariants = (product) => {
+
+  let variants = [];
+
+  return new Promise((resolve, reject) => {
+
+    //We have color variants
+    if(product.hasColorVariants){
+      product.colors.forEach((color, index) => {
+        const righIndex = index+1;
+        const imagesColor = product.imagesColor[`color${righIndex}`]
+        //We also have size variants
+        if(product.hasSizeVariants){
+          product.sizes.forEach((size) => {
+            variants.push(Variant.createVariant(product, color, size, imagesColor));
+          });
+        }
+        //We only have color variants
+        else{
+          variants.push(Variant.createVariant(product, color, null, imagesColor));
+        }
+      });
+    }
+    //We only have size variants
+    else if(product.hasSizeVariants){
+      product.sizes.forEach((size) => {
+        variants.push(Variant.createVariant(product, null, size, null));
+      });
+    }
+    //No variants at all. But create one for the product
+    else{
+      variants.push(Variant.createVariant(product, null, null, null));
+    }
+
+    //Save all ou variants
+    Promise.all(variants).then(() => {
+      resolve();
+    }).catch((err) => {
+      reject(err);
+    });
+  });
+
 }
 
 
@@ -1511,7 +1590,7 @@ OrderSchema.methods.updateStatus = function(newStatus){
 
 }
 
-OrderSchema.methods.getSelectionsForFacebook = function(){
+OrderSchema.methods.getSelectionsForFacebook = () => {
 
   let elements = [];
   let order = this;
@@ -1532,7 +1611,7 @@ OrderSchema.methods.getSelectionsForFacebook = function(){
           return selection.variant.equals(o._id); }
         );
         let variant = variants[index];
-        const titleVariant = `${variant.product.title} - ${_.upperFirst(variant.type)} : ${variant.value}`
+        const titleVariant = variant.getTitle();
 
         if(variant){
           let elementObject = {

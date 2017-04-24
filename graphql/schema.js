@@ -140,6 +140,9 @@ const rootSchema = [`
     #Let the customer knows if user is typing
     agentTyping(userFacebookId:String!, typing:Boolean!): Boolean
 
+    #Send a carousel
+    sendCarousel(facebookId:String!):Boolean
+
   }
 
   type Subscription {
@@ -458,6 +461,15 @@ const rootResolvers = {
         .then(() => (
           true
         ))
+    },
+    sendCarousel(root, {facebookId}, context){
+      return Promise.resolve()
+        .then(() => (
+          facebook.sendCarousel(context.user.pageToken, facebookId)
+        ))
+        .then(() => (
+          true
+        ));
     }
   },
   Subscription: {
