@@ -1208,24 +1208,24 @@ CartSchema.statics.addProduct = function(variantId, shop, userId){
     let variant;
     let finalCart;
 
-    User.findById(userId).then(function(userFound){
+    User.findById(userId).then((userFound) => {
       if(!userFound) reject(new Error("No user with this id"))
 
       user = userFound;
 
       return Variant.findById(variantId).populate('product');
-    }).then(function(variantFound){
+    }).then((variantFound) => {
       if(!variantFound) reject(new Error("No variant with this id"))
 
       variant = variantFound
       return Cart.findOne({shop: shop, user: user}).populate('user shop');
-    }).then(function(cart){
+    }).then((cart) => {
 
       //There is already a cart
       if(cart){
 
         let foundOne = false;
-        _.forEach(cart.selections, function(value) {
+        _.forEach(cart.selections, (value) => {
             if(variant.equals(value.variant)){
               foundOne = true;
               value.quantity++;
@@ -1271,14 +1271,12 @@ CartSchema.statics.addProduct = function(variantId, shop, userId){
       }
 
 
-    }).then(function(cart){
+    }).then((cart) =>{
       finalCart = cart;
       return messaging.sendInfosAfterAddCart(variant, shop, user, finalCart);
     }).then(() => {
-
       resolve(finalCart);
-    }).catch(function(error){
-
+    }).catch((error) =>{
       reject(error);
     });
 

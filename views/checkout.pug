@@ -38,10 +38,10 @@ html(lang="en")
                     th Produit
                     th Prix
                 tbody
-                  each selection in cart.selections
+                  each selection, index in cart.selections
                     tr
                       td= selection.quantity
-                      td= selection.variant.productTitle
+                      td= titles[index]
                       td #{selection.totalPriceVariant}€
           div(class="row group")
             div(class="col-xs-12")

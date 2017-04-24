@@ -26,8 +26,14 @@ exports.paySimple = function(req, res){
       //   cartToken : cartToken,
       //   price: cart.totalPrice
       // });
+      let variantTitles = [];
+      cart.selections.forEach((selection) => {
+        variantTitles.push(selection.variant.getTitle());
+      });
+
       res.render('checkout', {
         cart: cart,
+        titles: variantTitles,
         stripe_pub_key: config.STRIPE_PUB_KEY
       });
     }
