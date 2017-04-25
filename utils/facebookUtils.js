@@ -274,10 +274,7 @@ function managePostback(shop, message){
       case "MORE_INFOS":
         if(spliitedPayload.length < 2) break;
         else{
-          Product.findOne({reference : spliitedPayload[1]}).then((product) => {
-            if(!product) reject(new Error("No product with this id found"));
-            return sendMessage(shop, customerFacebookId, product.longDescription, null);
-          }).then(() => {
+          messaging.sendProductInfos(shop, customerFacebookId, spliitedPayload[1], "long").then(() => {
             resolve();
           }).catch((err) => {
             reject(err);
@@ -355,7 +352,7 @@ function sendMessage(shop, recipientId, text, metadata){
 
   if(metadata) messageData.message.metadata = metadata;
 
-  return new Promise(function(resolve, reject){
+  return new Promise((resolve, reject) => {
 
     let newMessage;
 
@@ -592,57 +589,6 @@ function sendReceipt(order){
 
 }
 
-
-function sendCarousel(pageToken, userFacebookId){
-
-  const messageData = {
-    recipient: {
-      id: userFacebookId
-    },
-    message: {
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "generic",
-          image_aspect_ratio: "square",
-          elements: [
-            {
-              title: "BAVOIR PAPA TU PIQUES BLEU",
-              image_url: "https://www.bebetshirt.com/6696-thickbox_default/bavoir-papa-tu-piques.jpg",
-              subtitle: "Prix : 14€",
-              buttons: [{
-                type: "postback",
-                title: "Plus d'infos",
-                payload: "MORE_INFOS:bavoir_papa_tu_piques_bleu"
-              }]
-            },
-            {
-              title: "BODY FUTUR TOMBEUR BLANC",
-              image_url: "https://www.bebetshirt.com/3500-thickbox_default/futur-tombeur.jpg",
-              subtitle: "Prix : 18,90€",
-              buttons: [{
-                type: "postback",
-                title: "Plus d'infos",
-                payload: "MORE_INFOS:body_futur_tombeur_blanc"
-              }]
-            }
-          ]
-        }
-      }
-    }
-  }
-
-  return new Promise((resolve, reject) => {
-    send(messageData, pageToken).then((parsedBody) => {
-      logging.info(parsedBody);
-      resolve(parsedBody);
-    }).catch((err) => {
-      logging.error(err.message);
-      reject(err);
-    })
-  })
-
-}
 
 
 
@@ -931,7 +877,6 @@ function setGreetingMessenger(shop, text){
   });
 }
 
-exports.sendCarousel = sendCarousel;
 exports.send = send;
 exports.setGreetingMessenger = setGreetingMessenger;
 exports.removeMessengerProfileInfos = removeMessengerProfileInfos;

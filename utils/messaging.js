@@ -1,6 +1,6 @@
 import config from 'config';
 import Promise from 'bluebird';
-import { Shop, Message, Cart } from '../mongo/models';
+import { Shop, Message, Cart, Product } from '../mongo/models';
 import logging from '../lib/logging';
 import moment from 'moment';
 import rp from 'request-promise';
@@ -206,11 +206,94 @@ function sendActionWhenGetStarted(shop, futurRecipientId){
 
 }
 
+function sendProductInfos(shop, facebookId, productId, whatInfos){
+  const arrayOfInfos = ["price","short","long"];
+
+  return new Promise((resolve,reject) => {
+    if(arrayOfInfos.indexOf(whatInfos) < 0) reject(new Error("We don't manage this kind of infos"));
+
+    Product.findById(productId).then((product) => {
+      if(!product) reject(new Error("The is no product with this id"));
+
+      let message = "";
+      switch (whatInfos) {
+        case "price":
+          message = `Le prix de "${product.title}" est de ${product.price}€`;
+          break;
+        case "short":
+          message = `${product.shortDescription}`;
+          break;
+        case "long":
+          message = _.replace(product.longDescription, /<p>/g, '');
+          message = _.replace(message, /<\/p>/g, '\n');
+          break;
+        default:
+
+      }
+
+      facebook.sendMessage(shop, facebookId, message, "sendInfos").then((message) => {
+        resolve(message)
+      }).catch((err) => {
+        reject(err);
+      })
+    })
+
+  });
+
+
+}
+
+
+function sendProductsCarousel(shop, userFacebookId, products){
+
+  let elements = [];
+  products.map((product) => {
+    const element = {
+      title: product.title,
+      image_url: product.images[0],
+      subtitle: `Prix : ${product.price}€\n${product.shortDescription}`,
+      buttons: [{
+        type: "postback",
+        title: "Plus d'infos",
+        payload: `MORE_INFOS:${product.id}`
+      }]
+    };
+    elements.push(element);
+  })
+
+  const messageData = {
+    recipient: {
+      id: userFacebookId
+    },
+    message: {
+      attachment: {
+        type: "template",
+        payload: {
+          template_type: "generic",
+          image_aspect_ratio: "square",
+          elements: elements
+        }
+      }
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    facebook.send(messageData, shop.pageToken).then((parsedBody) => {
+      resolve(parsedBody);
+    }).catch((err) => {
+      reject(err);
+    })
+  })
+
+}
+
 module.exports = {
+  sendProductInfos,
   sendActionWhenGetStarted,
   sendInfosAfterAddCart,
   sendInfosCartState,
   sendListPoductsCart,
   sendConfirmationPayment,
-  sendDeliveryUpdate
+  sendDeliveryUpdate,
+  sendProductsCarousel
 };

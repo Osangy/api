@@ -698,7 +698,7 @@ const MessageSchema = mongoose.Schema({
     },
     echoType: {
         type: String,
-        enum: ['standard', 'askPayCart', 'payConfirmation', 'receipt', 'orderStatus', 'addedProductCart', "giveCartState", "listProductsCart", "autoClosedMessage"]
+        enum: ['standard', 'askPayCart', 'payConfirmation', 'receipt', 'orderStatus', 'addedProductCart', "giveCartState", "listProductsCart", "autoClosedMessage", "sendInfos"]
     },
     attachments : [attachmentSchema]
   },

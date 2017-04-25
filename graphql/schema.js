@@ -9,6 +9,7 @@ import logging from '../lib/logging';
 import Promise from 'bluebird';
 import { pubsub } from './subscriptions';
 import moment from 'moment';
+import mongoose from 'mongoose';
 
 Promise.promisifyAll(require("mongoose"));
 
@@ -142,6 +143,12 @@ const rootSchema = [`
 
     #Send a carousel
     sendCarousel(facebookId:String!):Boolean
+
+    #Send a specific information about the product to the customer
+    sendInfos(facebookId:String!, productId:ID!, whatInfos:String!):Message
+
+    #Send products to the customer
+    sendProducts(facebookId:String!, productIds:[ID]!):Boolean
 
   }
 
@@ -465,11 +472,35 @@ const rootResolvers = {
     sendCarousel(root, {facebookId}, context){
       return Promise.resolve()
         .then(() => (
-          facebook.sendCarousel(context.user.pageToken, facebookId)
+          messaging.sendProductsCarousel(context.user, facebookId, null)
         ))
         .then(() => (
           true
         ));
+    },
+    sendInfos(root, {facebookId, productId, whatInfos}, context){
+      return Promise.resolve()
+        .then(() => (
+          messaging.sendProductInfos(context.user, facebookId, productId, whatInfos)
+        ))
+        .then((message) => (
+          message
+        ))
+    },
+    sendProducts(root, {facebookId, productIds}, context){
+      return Promise.resolve()
+        .then(() => {
+          let ids = productIds.map((productId) => {
+            return (new mongoose.Types.ObjectId(productId))
+          });
+          return Product.find({'_id': { $in: ids}});
+        })
+        .then((products) => (
+          messaging.sendProductsCarousel(context.user, facebookId, products)
+        ))
+        .then(() => (
+          true
+        ))
     }
   },
   Subscription: {
