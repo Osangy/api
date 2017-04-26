@@ -207,7 +207,7 @@ function sendActionWhenGetStarted(shop, futurRecipientId){
 }
 
 function sendProductInfos(shop, facebookId, productId, whatInfos){
-  const arrayOfInfos = ["price","short","long"];
+  const arrayOfInfos = ["price","short","long", "morePhotos"];
 
   return new Promise((resolve,reject) => {
     if(arrayOfInfos.indexOf(whatInfos) < 0) reject(new Error("We don't manage this kind of infos"));
@@ -215,7 +215,8 @@ function sendProductInfos(shop, facebookId, productId, whatInfos){
     Product.findById(productId).then((product) => {
       if(!product) reject(new Error("The is no product with this id"));
 
-      let message = "";
+      let message = null;
+      let images = null;
       switch (whatInfos) {
         case "price":
           message = `Le prix de "${product.title}" est de ${product.price}€`;
@@ -226,16 +227,41 @@ function sendProductInfos(shop, facebookId, productId, whatInfos){
         case "long":
           message = _.replace(product.longDescription, /<p>/g, '');
           message = _.replace(message, /<\/p>/g, '\n');
+          message = `ℹ️ Plus d'informations pour ${product.title} :\n\n` + message;
           break;
+        case "morePhotos":
+          if(product.images.length > 1){
+            images = [];
+            images.push(_.nth(product.images, 1));
+            if(product.images.length > 2) images.push(_.nth(product.images, 2));
+          }
+          logging.info(images);
         default:
 
       }
 
-      facebook.sendMessage(shop, facebookId, message, "sendInfos").then((message) => {
-        resolve(message)
-      }).catch((err) => {
-        reject(err);
-      })
+      if(message){
+        facebook.sendMessage(shop, facebookId, message, "sendInfos").then((message) => {
+          resolve(message)
+        }).catch((err) => {
+          reject(err);
+        });
+      }
+      else if(images){
+        let imagesPromise = [];
+        images.forEach((image) => {
+          imagesPromise.push(facebook.sendImage(shop, facebookId, image));
+        });
+        Promise.all(imagesPromise).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        })
+      }
+      else{
+        resolve();
+      }
+
     })
 
   });
@@ -246,18 +272,36 @@ function sendProductInfos(shop, facebookId, productId, whatInfos){
 
 function sendProductsCarousel(shop, userFacebookId, products){
 
+
   let elements = [];
   products.map((product) => {
-    const element = {
+    let element = {
       title: product.title,
       image_url: product.images[0],
       subtitle: `Prix : ${product.price}€\n${product.shortDescription}`,
       buttons: [{
         type: "postback",
-        title: "Plus d'infos",
+        title: "Plus d'infos 🤔",
         payload: `MORE_INFOS:${product.id}`
       }]
     };
+
+    //More Photos action
+    if(product.images.length > 1){
+      element.buttons.push({
+        type: "postback",
+        title: "Plus de photos 📷",
+        payload: `MORE_PHOTOS:${product.id}`
+      });
+    }
+
+    //Add to cart action
+    element.buttons.push({
+      type: "postback",
+      title: "Ajouter au panier 🛒",
+      payload: `ADD_CART:${product.id}`
+    });
+
     elements.push(element);
   })
 

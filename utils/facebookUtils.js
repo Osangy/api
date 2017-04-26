@@ -282,6 +282,24 @@ function managePostback(shop, message){
         }
         break;
 
+      case "MORE_PHOTOS":
+        if(spliitedPayload.length < 2) break;
+        else{
+          messaging.sendProductInfos(shop, customerFacebookId, spliitedPayload[1], "morePhotos").then(() => {
+            resolve();
+          }).catch((err) => {
+            reject(err);
+          })
+        }
+        break;
+
+      case "ADD_CART":
+        if(spliitedPayload.length < 2) break;
+        else{
+          logging.info(`Add product ${spliitedPayload[1]} to the cart`);
+        }
+        break;
+
       default:
         logging.info("Does not know this postback");
     }
