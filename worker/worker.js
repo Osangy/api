@@ -18,6 +18,7 @@ import facebook from '../utils/facebookUtils';
 import files from '../lib/files';
 import { Message } from '../mongo/models';
 import shop from '../utils/shop';
+import redis from '../utils/redis';
 
 
 /*
@@ -28,6 +29,8 @@ mongoose.connect(config.mongo_url);
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 
+//Init redis
+redis.initClient();
 
 // When running on Google App Engine Managed VMs, the worker needs
 // to respond to HTTP requests and can optionally supply a health check.

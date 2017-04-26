@@ -331,7 +331,71 @@ function sendProductsCarousel(shop, userFacebookId, products){
 
 }
 
+function chooseProductColor(shop, user, product){
+
+  return new Promise((resolve, reject) => {
+
+    const messageData = {
+      recipient: {
+        id: user.facebookId
+      },
+      message: {
+        text: `Veuillez choisir une couleur dans laquelle vous souhaitez "${product.title}". (Envoyez STOP si vous ne souhaitez plus ce produit)`,
+        quick_replies: []
+      }
+    };
+
+    product.colors.forEach((color) => {
+      messageData.message.quick_replies.push({
+        content_type: "text",
+        title: `${color}`,
+        payload: `COLOR:${color}`
+      })
+    })
+
+    facebook.send(messageData, shop.pageToken).then(() => {
+      resolve();
+    }).catch((err) => {
+      reject(err);
+    });
+
+  });
+}
+
+function chooseProductSize(shop, user, product){
+
+  return new Promise((resolve, reject) => {
+
+    const messageData = {
+      recipient: {
+        id: user.facebookId
+      },
+      message: {
+        text: `Veuillez choisir une taille dans laquelle vous souhaitez "${product.title}". (Envoyez STOP si vous ne souhaitez plus ce produit)`,
+        quick_replies: []
+      }
+    };
+
+    product.sizes.forEach((size) => {
+      messageData.message.quick_replies.push({
+        content_type: "text",
+        title: `${size}`,
+        payload: `SIZE:${size}`
+      });
+    });
+
+    facebook.send(messageData, shop.pageToken).then(() => {
+      resolve();
+    }).catch((err) => {
+      reject(err);
+    });
+
+  });
+}
+
 module.exports = {
+  chooseProductSize,
+  chooseProductColor,
   sendProductInfos,
   sendActionWhenGetStarted,
   sendInfosAfterAddCart,

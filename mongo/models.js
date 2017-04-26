@@ -696,6 +696,7 @@ const MessageSchema = mongoose.Schema({
       ref: 'Shop',
       index: true
     },
+    quick_reply: String,
     echoType: {
         type: String,
         enum: ['standard', 'askPayCart', 'payConfirmation', 'receipt', 'orderStatus', 'addedProductCart', "giveCartState", "listProductsCart", "autoClosedMessage", "sendInfos"]
@@ -744,7 +745,7 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
     if(meta.ad_id) adId = meta.ad_id
   }
 
-  return new Promise(function(resolve, reject){
+  return new Promise((resolve, reject) => {
 
     //Capture the source if there is one
     User.createOrFindUser(user_id, shop, adId).then((userObject) => {
@@ -752,7 +753,7 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
 
       //See if conversation exists, or create one
       return Conversation.findOrCreate(userObject, shop);
-    }).then(function(conversationObject){
+    }).then((conversationObject) => {
 
 
       //Create the message
@@ -763,6 +764,10 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
         mid: messageObject.message.mid,
         shop: shop
       });
+
+      if(messageObject.quick_reply){
+        message.quick_reply = messageObject.quick_reply.payload;
+      }
 
       //Set the right user kind
       if(messageObject.message.is_echo){
@@ -791,7 +796,7 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
       return shop.sendAutoMessageIfClosed(message);
     }).then(() => {
       resolve(finalMessage);
-    }).catch(function(err){
+    }).catch((err) => {
       reject(err);
     });
 

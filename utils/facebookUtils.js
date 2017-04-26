@@ -1,7 +1,7 @@
 import config from 'config';
 import Promise from 'bluebird';
 import {parseAccessTokenResponse} from './other';
-import { Shop, Message, Conversation, Product } from '../mongo/models';
+import { Shop, Message, Conversation, Product, User } from '../mongo/models';
 import logging from '../lib/logging';
 import request from 'request';
 import rp from 'request-promise';
@@ -9,6 +9,7 @@ import moment from 'moment';
 import { pubsub } from '../graphql/subscriptions';
 import background from '../lib/background';
 import messaging from './messaging';
+import flows from '../flows';
 import _ from 'lodash';
 
 Promise.promisifyAll(require("mongoose"));
@@ -134,22 +135,18 @@ function manageMessage(messageObject, shop){
 
     }
     else{
-      Message.createFromFacebook(messageObject, shop).then(function(message){
+      let finalMessage;
+      Message.createFromFacebook(messageObject, shop).then((message) => {
         //Send to subscriptions the new message
         pubsub.publish('messageAdded', message);
+        finalMessage = message;
+        return managePayloadAction(shop, message);
+      }).then(() => {
 
-        //If it is a payload, we have to do an automatic action
-        if(messageObject.message.quick_reply != null){
-          managePayloadAction(shop, message.sender, messageObject.message.quick_reply.payload).then(() => {
-            resolve((message));
-          }).catch((err) => {
-            reject(err);
-          })
-        }
-        else{
-          resolve(message);
-        }
-      }).catch(function(err){
+        return flows.manageFlow(finalMessage);
+      }).then(() => {
+        resolve();
+      }).catch((err) => {
         reject(err);
       });
     }
@@ -162,67 +159,74 @@ function manageMessage(messageObject, shop){
 * Manage Payload Actions
 */
 
-function managePayloadAction(shop, user, payload){
+function managePayloadAction(shop, message){
 
   return new Promise((resolve, reject) => {
 
-    const spliitedPayload = _.split(payload, ':');
-    const introPayload = spliitedPayload[0];
+    if(!message.quick_reply) return resolve();
+    else{
+      const payload = message.quick_reply;
+      const user = message.sender
 
-    switch (introPayload) {
-      case config.PAYLOAD_INFOS_CART:
-        messaging.sendInfosCartState(shop, user).then(() => {
-          resolve();
-        }).catch((err) => {
-          reject(err);
-        });
+      const spliitedPayload = _.split(payload, ':');
+      const introPayload = spliitedPayload[0];
 
-        break;
-      case config.PAYLOAD_INFOS_CART_LIST_PRODUCTS:
-        messaging.sendListPoductsCart(shop, user).then(() => {
-          resolve();
-        }).catch((err) => {
-          reject(err);
-        });
-
-        break;
-
-      case "GET_STARTED":
-        if(spliitedPayload.length < 2) break;
-
-        switch(spliitedPayload[1]){
-          case "LOVE":
-            logging.info("SEND LOVE");
-            break;
-          case "GIFT":
-            logging.info("WANT GIFT");
-            break;
-          case "SAV":
-            logging.info("NEED SAV");
-            break;
-          case "INFOS":
-            logging.info("WANT INFOS");
-            break;
-        }
-        break;
-
-      case "BUY_PRODUCT":
-        if(spliitedPayload.length < 2) break;
-        else{
-          Product.findOne({reference : spliitedPayload[1]}).then((product) => {
-            if(!product) reject(new Error("No product with this id found"));
-            return sendMessage(shop, user.facebookId, product.longDescription, null);
-          }).then(() => {
+      switch (introPayload) {
+        case config.PAYLOAD_INFOS_CART:
+          messaging.sendInfosCartState(shop, user).then(() => {
             resolve();
           }).catch((err) => {
             reject(err);
-          })
-        }
-        break;
+          });
+
+          break;
+        case config.PAYLOAD_INFOS_CART_LIST_PRODUCTS:
+          messaging.sendListPoductsCart(shop, user).then(() => {
+            resolve();
+          }).catch((err) => {
+            reject(err);
+          });
+
+          break;
+
+        case "GET_STARTED":
+          if(spliitedPayload.length < 2) break;
+
+          switch(spliitedPayload[1]){
+            case "LOVE":
+              logging.info("SEND LOVE");
+              break;
+            case "GIFT":
+              logging.info("WANT GIFT");
+              break;
+            case "SAV":
+              logging.info("NEED SAV");
+              break;
+            case "INFOS":
+              logging.info("WANT INFOS");
+              break;
+          }
+          break;
+
+        case "BUY_PRODUCT":
+          if(spliitedPayload.length < 2) break;
+          else{
+            Product.findOne({reference : spliitedPayload[1]}).then((product) => {
+              if(!product) reject(new Error("No product with this id found"));
+              return sendMessage(shop, user.facebookId, product.longDescription, null);
+            }).then(() => {
+              resolve();
+            }).catch((err) => {
+              reject(err);
+            })
+          }
+          break;
 
 
-      default:
-        logging.info("Does not know this payload");
+        default:
+          logging.info("Does not know this payload");
+          resolve();
+      }
     }
 
   });
@@ -260,7 +264,7 @@ function managePostback(shop, message){
       case "BUY_PRODUCT":
         if(spliitedPayload.length < 2) break;
         else{
-          Product.findOne({reference : spliitedPayload[1]}).then((product) => {
+          Product.findOne({_id : ObjectId(spliitedPayload[1])}).then((product) => {
             if(!product) reject(new Error("No product with this id found"));
             return sendMessage(shop, customerFacebookId, product.longDescription, null);
           }).then(() => {
@@ -272,7 +276,7 @@ function managePostback(shop, message){
         break;
 
       case "MORE_INFOS":
-        if(spliitedPayload.length < 2) break;
+        if(spliitedPayload.length < 2) resolve();
         else{
           messaging.sendProductInfos(shop, customerFacebookId, spliitedPayload[1], "long").then(() => {
             resolve();
@@ -283,7 +287,7 @@ function managePostback(shop, message){
         break;
 
       case "MORE_PHOTOS":
-        if(spliitedPayload.length < 2) break;
+        if(spliitedPayload.length < 2) resolve();
         else{
           messaging.sendProductInfos(shop, customerFacebookId, spliitedPayload[1], "morePhotos").then(() => {
             resolve();
@@ -294,9 +298,22 @@ function managePostback(shop, message){
         break;
 
       case "ADD_CART":
-        if(spliitedPayload.length < 2) break;
+        if(spliitedPayload.length < 2) resolve();
         else{
           logging.info(`Add product ${spliitedPayload[1]} to the cart`);
+          let finalUser;
+          User.findOne({'facebookId' : customerFacebookId}).then((user) => {
+            if(!user) throw (new Error("No user with this facebook Id"));
+
+            finalUser = user;
+            return Product.findById(spliitedPayload[1]);
+          }).then((product) => {
+            return flows.startFlow(finalUser, 'addCart', product, shop);
+          }).then((res) => {
+            resolve();
+          }).catch((err) => {
+            reject(err);
+          })
         }
         break;
 
@@ -621,12 +638,7 @@ function send(messageData, pageToken){
       json: messageData
     }
 
-    console.log("Sending");
-    console.log(messageData);
-
     rp(options).then((parsedBody) => {
-      console.log("RESPONSE");
-      console.log(parsedBody);
       resolve(parsedBody);
     }).catch((err) => {
       reject(err);
