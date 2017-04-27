@@ -24,7 +24,7 @@ var AttachmentTypes = {
 
 exports.manageEntry = function(entry){
 
-  return new Promise(function(resolve, reject){
+  return new Promise((resolve, reject) => {
     let pageID = entry.id;
     let timeOfEvent = entry.time;
 
@@ -258,6 +258,29 @@ function managePostback(shop, message){
         }).catch((err) => {
           reject(err);
         });
+        break;
+
+      case config.PAYLOAD_INFOS_CART:
+        User.findOne({facebookId:customerFacebookId}).then((user) => {
+          if(!user) throw new Error("No user with this facebook Id");
+          return messaging.sendInfosCartState(shop, user);
+        }).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        });
+
+        break;
+      case config.PAYLOAD_INFOS_CART_LIST_PRODUCTS:
+        User.findOne({facebookId:customerFacebookId}).then((user) => {
+          if(!user) throw new Error("No user with this facebook Id");
+          return messaging.sendListPoductsCart(shop, user);
+        }).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        });
+
         break;
 
 
@@ -846,6 +869,73 @@ function removeMessengerProfileInfos(shop, infos){
   });
 }
 
+function setPersistentMenu(shop, activate){
+  return new Promise((resolve, reject) => {
+
+    if(activate){
+      const uri = `https://graph.facebook.com/v2.6/me/messenger_profile`;
+      const options = {
+        uri: uri,
+        qs: {
+          access_token: shop.pageToken
+        },
+        json: {
+          persistent_menu: [{
+            locale: 'default',
+            call_to_actions: [
+              {
+                title: 'Mon panier 🛒',
+                type:'nested',
+                call_to_actions: [
+                  {
+                    title: "Récapitulatif 🛍",
+                    type:'postback',
+                    payload: config.PAYLOAD_INFOS_CART
+                  },
+                  {
+                    title: "Liste des produits 📦",
+                    type:'postback',
+                    payload: config.PAYLOAD_INFOS_CART_LIST_PRODUCTS
+                  },
+                  {
+                    title: "Valider mon panier 🙌🏼",
+                    type:'postback',
+                    payload: config.PAYLOAD_VALIDATE_CART
+                  }
+                ]
+              },
+              {
+                title: 'Parler à un agent 👩🏽‍💻',
+                type: 'postback',
+                payload: config.PAYLOAD_TALK_TO_AGENT
+              }
+            ]
+          }]
+        },
+        method: 'POST'
+      }
+
+      rp(options).then((parsedBody) => {
+        logging.info("Added persistent menu");
+        logging.info(parsedBody);
+        return shop.save();
+      }).then((shop) => {
+        resolve(shop);
+      }).catch((error) => {
+        reject(error);
+      })
+    }
+    else{
+      removeMessengerProfileInfos(shop, ['persistent_menu']).then(() => {
+        resolve();
+      }).catch((err) => {
+        reject(err);
+      })
+    }
+  });
+
+}
+
 
 function setGetStarted(shop){
   return new Promise((resolve, reject) => {
@@ -907,6 +997,7 @@ function setGreetingMessenger(shop, text){
   });
 }
 
+exports.setPersistentMenu = setPersistentMenu;
 exports.send = send;
 exports.setGreetingMessenger = setGreetingMessenger;
 exports.removeMessengerProfileInfos = removeMessengerProfileInfos;

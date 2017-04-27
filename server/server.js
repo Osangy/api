@@ -96,6 +96,7 @@ facebookRoutes.get("/test/image", routes.facebook.sendTestImage);
 facebookRoutes.get("/resub/:pageId", routes.facebook.reSub);
 facebookRoutes.get("/messenger/:pageId", routes.facebook.messengerInfos);
 facebookRoutes.get("/removestarted/:pageId", routes.facebook.removeGetStarted);
+facebookRoutes.get("/persistentmenu/:pageId/:activate", routes.facebook.setPersistentMenu);
 facebookRoutes.post('/webhook', routes.facebook.webhookPost);
 app.use('/fb', facebookRoutes);
 

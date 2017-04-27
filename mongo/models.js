@@ -546,7 +546,9 @@ const VariantSchema = mongoose.Schema({
     title: String,
     price: Number,
     color: String,
+    lowerColor: String,
     size: String,
+    lowerSize: String,
     images: [String]
 });
 
@@ -582,8 +584,14 @@ VariantSchema.statics.createVariant = (product, color, size, imagesColor) => {
       price: product.price
     });
 
-    if(color) newVariant.color = color;
-    if(size) newVariant.size = size;
+    if(color){
+      newVariant.color = color;
+      newVariant.lowerColor= _.toLower(color);
+    }
+    if(size){
+      newVariant.size = size;
+      newVariant.lowerSize = _.toLower(size);
+    }
     if(imagesColor) newVariant.images = imagesColor;
 
     newVariant.save().then((variant) => {
@@ -765,8 +773,8 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
         shop: shop
       });
 
-      if(messageObject.quick_reply){
-        message.quick_reply = messageObject.quick_reply.payload;
+      if(messageObject.message.quick_reply){
+        message.quick_reply = messageObject.message.quick_reply.payload;
       }
 
       //Set the right user kind
@@ -810,7 +818,7 @@ MessageSchema.statics.createFromShopToFacebook = (type, content, userFacebookId,
 
     let user;
     //See if user exists, or create one
-    User.findOne({facebookId : userFacebookId}).then(function(userObject){
+    User.findOne({facebookId : userFacebookId}).then((userObject) => {
 
       if(!userObject) reject(new Error("No user found"))
 
@@ -818,7 +826,7 @@ MessageSchema.statics.createFromShopToFacebook = (type, content, userFacebookId,
 
       //See if conversation exists, or create one
       return Conversation.findOne({shop : shop, user : user});
-    }).then(function(conversationObject){
+    }).then((conversationObject) => {
 
       if(!conversationObject) reject(new Error("The conversation was not found"));
 
@@ -1208,7 +1216,7 @@ CartSchema.statics.createFakeCart = function(shop, userId, price = 100){
 CartSchema.statics.addProduct = function(variantId, shop, userId){
 
 
-  return new Promise(function(resolve, reject){
+  return new Promise((resolve, reject) => {
     let user;
     let variant;
     let finalCart;

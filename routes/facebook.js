@@ -1,5 +1,5 @@
 import config from 'config';
-import { manageEntry, sendMessage, sendAction, sendImage, getLongToken, getPages, subscribePageToApp, readMessengerProfile, setGetStarted, setGreetingMessenger, removeMessengerProfileInfos } from '../utils/facebookUtils';
+import { manageEntry, sendMessage, sendAction, sendImage, getLongToken, getPages, subscribePageToApp, readMessengerProfile, setGetStarted, setGreetingMessenger, removeMessengerProfileInfos, setPersistentMenu } from '../utils/facebookUtils';
 import prettyjson from 'prettyjson';
 import logging from '../lib/logging';
 import Promise from 'bluebird';
@@ -176,4 +176,23 @@ exports.removeGetStarted = function(req, res){
     res.status(500).send(err.message);
   })
 
+}
+
+exports.setPersistentMenu = function(req, res){
+
+  Shop.findOne({ pageId : req.params.pageId}).then((shop) => {
+    if(!shop){
+      res.status(500).send("No Shop with this page id");
+    }
+    else{
+      const activate = req.params.activate === 'true' ? true : false
+      setPersistentMenu(shop, true).then((body) => {
+        res.send(body);
+      }).catch((err) => {
+        res.status(500).send(err.message);
+      })
+    }
+  }).catch((err) => {
+    res.status(500).send(err.message);
+  })
 }
