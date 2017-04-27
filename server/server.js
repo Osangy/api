@@ -139,7 +139,7 @@ app.use('/stripe', stripeRoutes);
 
 const shopRoutes = express.Router();
 shopRoutes.get('/p/:cartToken', routes.shop.testPay);
-shopRoutes.get('/pay/:cartToken', routes.shop.paySimple);
+shopRoutes.get('/pay/:cartId', routes.shop.paySimple);
 shopRoutes.post('/validatePayment', routes.shop.validatePayment);
 app.use('/shop', shopRoutes);
 

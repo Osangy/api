@@ -707,7 +707,7 @@ const MessageSchema = mongoose.Schema({
     quick_reply: String,
     echoType: {
         type: String,
-        enum: ['standard', 'askPayCart', 'payConfirmation', 'receipt', 'orderStatus', 'addedProductCart', "giveCartState", "listProductsCart", "autoClosedMessage", "sendInfos"]
+        enum: ['standard', 'askPayCart', 'payConfirmation', 'receipt', 'orderStatus', 'addedProductCart', "giveCartState", "listProductsCart", "autoClosedMessage", "sendInfos", "flow:size","flow:color"]
     },
     attachments : [attachmentSchema]
   },
@@ -1286,6 +1286,7 @@ CartSchema.statics.addProduct = function(variantId, shop, userId){
 
     }).then((cart) =>{
       finalCart = cart;
+      pubsub.publish('cartModified', cart);
       return messaging.sendInfosAfterAddCart(variant, shop, user, finalCart);
     }).then(() => {
       resolve(finalCart);
@@ -1601,7 +1602,7 @@ OrderSchema.methods.updateStatus = function(newStatus){
 
 }
 
-OrderSchema.methods.getSelectionsForFacebook = () => {
+OrderSchema.methods.getSelectionsForFacebook = function() {
 
   let elements = [];
   let order = this;

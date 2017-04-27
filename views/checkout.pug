@@ -90,7 +90,7 @@ html(lang="en")
                   div(id="card-element")
                   div(id="card-errors")
                   div(id="card-success")
-                input(type="hidden" id="cartToken" value=cart.ask_payment_token)
+                input(type="hidden" id="cartId" value=cart.id)
                 button(type="submit" class="btn btn-success btn-block btn-lg" id="buttonPay") PAYER #{cart.totalPrice}€
   script(type="text/javascript" src="/javascript/checkout.js")
             

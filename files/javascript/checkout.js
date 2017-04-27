@@ -53,7 +53,7 @@ form.addEventListener('submit', function(event) {
       document.getElementById("buttonPay").disabled = false;
     } else {
       // Send the token to your server
-      payWithToken(result.token.id, document.getElementById("cartToken").value);
+      payWithToken(result.token.id, document.getElementById("cartId").value);
     }
   });
 });
@@ -61,12 +61,9 @@ form.addEventListener('submit', function(event) {
 
 function payWithToken(token, cartId){
 
-  console.log(token);
-  console.log(cartId);
-
   axios.post('/shop/validatePayment', {
     token: token,
-    cartToken: cartId
+    cartId: cartId
   })
   .then((response) => {
     console.log(response);

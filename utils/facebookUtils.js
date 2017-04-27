@@ -1,7 +1,7 @@
 import config from 'config';
 import Promise from 'bluebird';
 import {parseAccessTokenResponse} from './other';
-import { Shop, Message, Conversation, Product, User } from '../mongo/models';
+import { Shop, Message, Conversation, Product, User, Cart } from '../mongo/models';
 import logging from '../lib/logging';
 import request from 'request';
 import rp from 'request-promise';
@@ -283,12 +283,27 @@ function managePostback(shop, message){
 
         break;
 
+      case config.PAYLOAD_VALIDATE_CART:
+        User.findOne({facebookId:customerFacebookId}).then((user) => {
+          if(!user) throw new Error(`No user found with the facebook id : ${customerFacebookId}`);
+          return Cart.findOne({shop: shop, user: user});
+        }).then((cart) => {
+          if(!cart) throw new Error(`No cart found for user ${user.id} and shop ${shop.id}`);
+          if(cart.selections.length == 0) return sendMessage(shop, customerFacebookId, `Votre panier est vide. 😭`, "giveCartState");
+          return sendButtonForPayCart(shop, customerFacebookId, cart);
+        }).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        });
+        break;
+
 
       case "BUY_PRODUCT":
         if(spliitedPayload.length < 2) break;
         else{
           Product.findOne({_id : ObjectId(spliitedPayload[1])}).then((product) => {
-            if(!product) reject(new Error("No product with this id found"));
+            if(!product) throw new Error("No product with this id found");
             return sendMessage(shop, customerFacebookId, product.longDescription, null);
           }).then(() => {
             resolve();
@@ -323,10 +338,9 @@ function managePostback(shop, message){
       case "ADD_CART":
         if(spliitedPayload.length < 2) resolve();
         else{
-          logging.info(`Add product ${spliitedPayload[1]} to the cart`);
           let finalUser;
           User.findOne({'facebookId' : customerFacebookId}).then((user) => {
-            if(!user) throw (new Error("No user with this facebook Id"));
+            if(!user) throw new Error("No user with this facebook Id");
 
             finalUser = user;
             return Product.findById(spliitedPayload[1]);
@@ -357,7 +371,7 @@ exports.getFacebookUserInfos = function(shop, userId){
 
   let uri = `https://graph.facebook.com/v2.6/${userId}`;
 
-  return new Promise(function (resolve, reject){
+  return new Promise((resolve, reject) => {
 
     const options = {
       uri: uri,
@@ -535,34 +549,34 @@ function sendTextWithQuickReplies(shop, recipientId, text, replies, metadata){
 
 function sendButtonForPayCart(shop, recipientId, cart){
 
-  const apiPayUrl = `${config.serverURL}shop/pay/${cart.ask_payment_token}`;
+  return new Promise((resolve, reject) => {
+    const apiPayUrl = `${config.serverURL}shop/pay/${cart.id}`;
 
-  const messageData = {
-    recipient: {
-      id: recipientId
-    },
-    message: {
-      metadata : "askPayCart",
-      attachment: {
-        type: "template",
-        payload: {
-          template_type: "button",
-          text: `Vous pouvez dès à présent finir votre achat en validant votre panier, d'un montant de ${cart.totalPrice}€, en cliquant ci dessous.👇👇👇👇👇`,
-          buttons: [
-            {
-              type: "web_url",
-              url: apiPayUrl,
-              title: "Valider mon panier 🛒",
-              messenger_extensions : true,
-              fallback_url : apiPayUrl
-            }
-          ]
+    const messageData = {
+      recipient: {
+        id: recipientId
+      },
+      message: {
+        metadata : "askPayCart",
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "button",
+            text: `Finissez votre achat dès maintenant en validant votre panier de ${cart.totalPrice}€, en cliquant ci-dessous.👇👇👇`,
+            buttons: [
+              {
+                type: "web_url",
+                url: apiPayUrl,
+                title: 'Valider panier 🙌🏼',
+                messenger_extensions : true,
+                fallback_url : apiPayUrl
+              }
+            ]
+          }
         }
       }
-    }
-  };
+    };
 
-  return new Promise(function(resolve, reject){
     send(messageData, shop.pageToken).then((parsedBody) =>{
       logging.info("Send button for cart "+cart._id);
       resolve(parsedBody);
@@ -905,7 +919,7 @@ function setPersistentMenu(shop, activate){
                 ]
               },
               {
-                title: 'Parler à un agent 👩🏽‍💻',
+                title: 'Parler à un agent 🗣',
                 type: 'postback',
                 payload: config.PAYLOAD_TALK_TO_AGENT
               }

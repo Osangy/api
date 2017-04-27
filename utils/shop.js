@@ -17,7 +17,7 @@ function payCart(shop, cartId){
     //Find the cart
     Cart.findById(cartId).populate('user').then((cart) => {
 
-      if(!cart) reject(new Error("No cart with this id"));
+      if(!cart) throw new Error("No cart with this id");
 
       //Generate a token for this payment (avoid to make a cart be paid 2 times)
       cart.ask_payment_token = randtoken.generate(16);

@@ -30,6 +30,7 @@ function sendInfosAfterAddCart(variant, shop, customer, cart){
 
 function sendInfosCartState(shop, customer){
 
+
   return new Promise((resolve, reject) => {
 
     Cart.findOne({shop : shop, user : customer}).populate('shop user').then((cart) => {
@@ -41,15 +42,47 @@ function sendInfosCartState(shop, customer){
         return facebook.sendMessage(shop, customer.facebookId, message, "giveCartState");
       }
       else{
-        const replies = [
-          {
-            content_type: "text",
-            title: "Liste des produits 📦",
-            payload: config.PAYLOAD_INFOS_CART_LIST_PRODUCTS
-          }
-        ];
+        // const replies = [
+        //   {
+        //     content_type: "text",
+        //     title: "Liste des produits 📦",
+        //     payload: config.PAYLOAD_INFOS_CART_LIST_PRODUCTS
+        //   }
+        // ];
+        const apiPayUrl = `${config.serverURL}shop/pay/${cart.id}`;
         const message = `Votre panier contient ${cart.nbProducts} produit(s), pour un montant total de ${cart.totalPrice}€`;
-        return facebook.sendTextWithQuickReplies(shop, customer.facebookId, message, replies, "giveCartState");
+        const messageData = {
+          recipient: {
+            id: customer.facebookId
+          },
+          message: {
+            metadata:'giveCartState',
+            attachment: {
+              type: "template",
+              payload: {
+                template_type: "button",
+                text: message,
+                buttons: [
+                  {
+                    type:'postback',
+                    title:'Détail produits 📦',
+                    payload:config.PAYLOAD_INFOS_CART_LIST_PRODUCTS
+                  },
+                  {
+                    type: "web_url",
+                    url: apiPayUrl,
+                    title: 'Valider panier 🙌🏼',
+                    messenger_extensions : true,
+                    fallback_url : apiPayUrl
+                  }
+                ]
+              }
+            }
+          }
+        }
+
+        return facebook.send(messageData, shop.pageToken);
+        //return facebook.sendTextWithQuickReplies(shop, customer.facebookId, message, replies, "giveCartState");
       }
 
     }).then(() => {
@@ -70,6 +103,10 @@ function sendListPoductsCart(shop, customer){
     Cart.findOne({shop : shop, user : customer}).populate('selections.variant').then((cart) => {
 
       if(!cart) reject(new Error("No cart for this user and this shop"));
+      if(cart.selections.length == 0) {
+        const message = `Votre panier est vide. 😭`;
+        return facebook.sendMessage(shop, customer.facebookId, message, "listProductsCart");
+      }
 
       let message = '';
       cart.selections.forEach((selection) => {
@@ -83,10 +120,33 @@ function sendListPoductsCart(shop, customer){
         }
       });
 
-
-      logging.info(cart.selections[0].variant.type);
-      return facebook.sendMessage(shop, customer.facebookId, message, "listProductsCart");
-
+      const apiPayUrl = `${config.serverURL}shop/pay/${cart.id}`;
+      const messageData = {
+        recipient: {
+          id: customer.facebookId
+        },
+        message: {
+          metadata:'listProductsCart',
+          attachment: {
+            type: "template",
+            payload: {
+              template_type: "button",
+              text: message,
+              buttons: [
+                {
+                  type: "web_url",
+                  url: apiPayUrl,
+                  title: 'Valider panier 🙌🏼',
+                  messenger_extensions : true,
+                  fallback_url : apiPayUrl
+                }
+              ]
+            }
+          }
+        }
+      }
+      return facebook.send(messageData, shop.pageToken);
+      //return facebook.sendMessage(shop, customer.facebookId, message, "listProductsCart");
     }).then(() => {
       resolve();
     }).catch((err) => {
@@ -341,6 +401,7 @@ function chooseProductColor(shop, user, product){
       },
       message: {
         text: `Veuillez choisir une couleur dans laquelle vous souhaitez "${product.title}". (Envoyez STOP si vous ne souhaitez plus ce produit)`,
+        metadata: 'flow:color',
         quick_replies: []
       }
     };
@@ -372,6 +433,7 @@ function chooseProductSize(shop, user, product){
       },
       message: {
         text: `Veuillez choisir une taille dans laquelle vous souhaitez "${product.title}". (Envoyez STOP si vous ne souhaitez plus ce produit)`,
+        metadata: 'flow:size',
         quick_replies: []
       }
     };

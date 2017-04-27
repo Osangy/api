@@ -166,7 +166,6 @@ function manageNeedColor(user, actualFlow, message, product){
     else{
       logging.info(`We have our color : ${text}`);
       redis.getClient().hmsetAsync(`flow:${user.id}`, ['color', text]).then(() => {
-        if(!actualFlow.needSize) throw "noSize"
         return manageFlowNextStep(user, message.shop, product);
       }).then(() => {
         resolve();

@@ -17,15 +17,12 @@ Promise.promisifyAll(require("mongoose"));
 */
 
 exports.paySimple = function(req, res){
-  const cartToken = req.params.cartToken;
+  const cartId = req.params.cartId;
 
-  Cart.findOne({ask_payment_token : cartToken}).populate('selections.variant user').then((cart) => {
+  Cart.findById(cartId).populate('selections.variant user').then((cart) => {
     if(!cart) res.send("Sorry but we did not find any cart. You probably already paid for it !");
+    else if(cart.selections.length == 0) res.send("Il n'y a pas de produit dans votre panier 😢");
     else{
-      // res.render('pay', {
-      //   cartToken : cartToken,
-      //   price: cart.totalPrice
-      // });
       let variantTitles = [];
       cart.selections.forEach((selection) => {
         variantTitles.push(selection.variant.getTitle());
@@ -69,19 +66,16 @@ exports.validatePayment = function(req, res){
 
 
   const token = req.body.token; // Using Express
-  const cartToken = req.body.cartToken;
+  const cartId = req.body.cartId;
   let nowCart;
 
-  console.log(cartToken);
-
-  Cart.findOne({ask_payment_token : cartToken}).populate('shop user').then((cart) => {
+  Cart.findById(cartId).populate('shop user').then((cart) => {
 
     if(!cart){
       res.send("Error finding your cart. Your payment has been cancelled");
     }
     else{
       nowCart = cart;
-      console.log(cart.totalPrice);
       return stripe.chargeForShop(cart.shop, cart.totalPrice, token, `Payment for cart ${cart._id}`);
     }
 
