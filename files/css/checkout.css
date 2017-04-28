@@ -25,9 +25,24 @@
   background-color: #fefde5 !important;
 }
 
+.right{
+  margin-top: 12px;
+  float: right;
+}
+
 .group{
+  background-color: #ecf0f1;
   margin-top: 5px;
   margin-bottom: 5px;
+  cursor: pointer;
+}
+
+.group h4{
+  float:left;
+}
+
+.hidden{
+  display:none;
 }
 
 .fixed-bottom{
@@ -44,9 +59,9 @@
 .infos{
   position: absolute;
   top: 0px;
-  bottom: 208px;
-  left: 20px;
-  right: 20px;
+  bottom: 191px;
+  left: 15px;
+  right: 15px;
   overflow-y: scroll;
   overflow-x: hidden;
   max-width: 100%;

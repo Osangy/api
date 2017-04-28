@@ -26,10 +26,11 @@ html(lang="en")
           div(class="row")
             div(class="col-xs-12")
               h2(class="text-center") Votre Panier 🛒
-          div(class="row group")
+          div(class="row group" id="productTitle")
             div(class="col-xs-12")
               h4 Produits 📦
-          div(class="row")
+              <span class="glyphicon glyphicon-menu-right right" aria-hidden="true"></span>
+          div(class="row hidden" id="productContent")
             div(class="col-xs-12")
               table(class="table")
                 thead
@@ -43,10 +44,11 @@ html(lang="en")
                       td= selection.quantity
                       td= titles[index]
                       td #{selection.totalPriceVariant}€
-          div(class="row group")
+          div(class="row group" id="addressTitle")
             div(class="col-xs-12")
               h4 Adresse de livraison 🏠
-          div(class="row")
+              <span class="glyphicon glyphicon-menu-right right" aria-hidden="true"></span>
+          div(class="row hidden" id="addressContent")
             div(class="col-xs-12")
               address
                 strong #{cart.user.firstName} #{cart.user.lastName} 
@@ -54,28 +56,30 @@ html(lang="en")
                 | #{cart.shippingAddress.streetNumber} #{cart.shippingAddress.route} 
                 br
                 | #{cart.shippingAddress.postalCode} #{cart.shippingAddress.locality}
-          div(class="row group")
+          div(class="row group" id="recapTitle")
             div(class="col-xs-12")
               h4 Récapitulatif 📝
-          div(class="col-xs-12")
-            table(class="table")
-              thead
-                tr 
-                  th
-                  th 
-              tbody
-                tr
-                  td Livraison
-                  td 
-                    strong Gratuite
-                tr
-                  td Sous Total
-                  td 
-                    strong #{cart.totalPrice}€
-                tr
-                  td Total
-                  td 
-                    strong #{cart.totalPrice}€
+              <span class="glyphicon glyphicon-menu-right right" aria-hidden="true"></span>
+          div(class="row hidden" id="recapContent")
+            div(class="col-xs-12")
+              table(class="table")
+                thead
+                  tr 
+                    th
+                    th 
+                tbody
+                  tr
+                    td Livraison
+                    td 
+                      strong Gratuite
+                  tr
+                    td Sous Total
+                    td 
+                      strong #{cart.totalPrice}€
+                  tr
+                    td Total
+                    td 
+                      strong #{cart.totalPrice}€
     div(class="fixed-bottom")
       div(class="row")
         div(class="col-xs-12")

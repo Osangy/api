@@ -103,7 +103,7 @@ exports.manageEntry = function(entry){
 
 function manageMessage(messageObject, shop){
 
-  return new Promise(function(resolve, reject){
+  return new Promise((resolve, reject) => {
 
     const messageText = messageObject.message.text;
     const messageAttachements = messageObject.message.attachments;
@@ -128,7 +128,7 @@ function manageMessage(messageObject, shop){
           }
 
           resolve(message);
-        }).catch(function(err){
+        }).catch((err) => {
           reject(err);
         })
       }
@@ -141,13 +141,14 @@ function manageMessage(messageObject, shop){
         pubsub.publish('messageAdded', message);
         finalMessage = message;
         return managePayloadAction(shop, message);
-      }).then(() => {
-
+      }).then((res) => {
+        if(res === "startFlow") throw "startFlow";
         return flows.manageFlow(finalMessage);
       }).then(() => {
         resolve();
       }).catch((err) => {
-        reject(err);
+        if(err === "startFlow") resolve();
+        else reject(err);
       });
     }
 
@@ -216,6 +217,20 @@ function managePayloadAction(shop, message){
               return sendMessage(shop, user.facebookId, product.longDescription, null);
             }).then(() => {
               resolve();
+            }).catch((err) => {
+              reject(err);
+            })
+          }
+          break;
+
+        case "ADD_CART":
+          if(spliitedPayload.length < 2) resolve();
+          else{
+            Product.findById(spliitedPayload[1]).then((product) => {
+              if(!product) throw new Error(`No product with id ${spliitedPayload[1]} found`);
+              return flows.startFlow(user, 'addCart', product, shop);
+            }).then((res) => {
+              resolve("startFlow");
             }).catch((err) => {
               reject(err);
             })
@@ -345,6 +360,7 @@ function managePostback(shop, message){
             finalUser = user;
             return Product.findById(spliitedPayload[1]);
           }).then((product) => {
+            if(!product) throw new Error(`No product with id ${spliitedPayload[1]} found`);
             return flows.startFlow(finalUser, 'addCart', product, shop);
           }).then((res) => {
             resolve();

@@ -273,7 +273,7 @@ function sendProductInfos(shop, facebookId, productId, whatInfos){
     if(arrayOfInfos.indexOf(whatInfos) < 0) reject(new Error("We don't manage this kind of infos"));
 
     Product.findById(productId).then((product) => {
-      if(!product) reject(new Error("The is no product with this id"));
+      if(!product) throw new Error("The is no product with this id");
 
       let message = null;
       let images = null;
@@ -301,26 +301,41 @@ function sendProductInfos(shop, facebookId, productId, whatInfos){
       }
 
       if(message){
-        facebook.sendMessage(shop, facebookId, message, "sendInfos").then((message) => {
-          resolve(message)
-        }).catch((err) => {
-          reject(err);
-        });
+        const replies = [{
+          content_type:'text',
+          title: 'Ajouter au panier 🛒',
+          payload: `ADD_CART:${product.id}`
+        }];
+        return facebook.sendTextWithQuickReplies(shop, facebookId, message, replies, "sendInfos");
+        // facebook.sendMessage(shop, facebookId, message, "sendInfos").then((message) => {
+        //   resolve(message)
+        // }).catch((err) => {
+        //   reject(err);
+        // });
       }
       else if(images){
         let imagesPromise = [];
         images.forEach((image) => {
           imagesPromise.push(facebook.sendImage(shop, facebookId, image));
         });
+        //return Promise.all(imagesPromise);
         Promise.all(imagesPromise).then(() => {
-          resolve();
+          const replies = [{
+            content_type:'text',
+            title: 'Ajouter au panier 🛒',
+            payload: `ADD_CART:${product.id}`
+          }];
+          const message = "Vous pouvez à présent ajouter le produit à votre panier en cliquant ci-dessous 👇👇👇"
+          return facebook.sendTextWithQuickReplies(shop, facebookId, message, replies, "sendInfos");
         }).catch((err) => {
-          reject(err);
+          throw err;
         })
       }
       else{
-        resolve();
+        throw new Error("We are not able to manage this kind of infos to send");
       }
+
+    }).then(() => {
 
     })
 
