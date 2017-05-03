@@ -3,7 +3,6 @@ import Promise from 'bluebird';
 import { Shop, Message, Cart, Product } from '../mongo/models';
 import logging from '../lib/logging';
 import moment from 'moment';
-import rp from 'request-promise';
 import facebook from './facebookUtils'
 import _ from 'lodash';
 

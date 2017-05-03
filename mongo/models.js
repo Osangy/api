@@ -26,6 +26,7 @@ const addressSchema = mongoose.Schema({
   recipientName: String,
   streetNumber : String,
   route: String,
+  address: String,
   locality: String,
   region : String,
   country: String,
@@ -1368,10 +1369,10 @@ CartSchema.statics.updateShippingAddress = function(shippingAddress, shop, userI
       }
 
 
-    }).then(function(cart){
+    }).then((cart) =>{
 
       resolve(cart);
-    }).catch(function(error){
+    }).catch((error) => {
 
       reject(error);
     });

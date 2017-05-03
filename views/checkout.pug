@@ -2,12 +2,12 @@ html(lang="en")
   head
     title Panier
     meta(name="viewport" content="width=device-width, initial-scale=1.0")
-    link(rel="stylesheet" type="text/css" href="/css/checkout.css")
     script(src="/jquery-3.1.1.min.js")
     script(type="text/javascript" src="https://js.stripe.com/v3/")
     script(type="text/javascript" src="https://unpkg.com/axios/dist/axios.min.js")
     link(rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous")
     script(src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous")
+    link(rel="stylesheet" type="text/css" href="/css/checkout.css")
     script(type="text/javascript").
       (function(d, s, id){
         var js, fjs = d.getElementsByTagName(s)[0];
@@ -17,85 +17,126 @@ html(lang="en")
         fjs.parentNode.insertBefore(js, fjs);
         }(document, 'script', 'Messenger'));
     script(type='text/javascript').
-            var stripe_pub_key = '#{stripe_pub_key}';
+            var cart = !{cart_object};
+            var stripe_pub_key = "#{stripe_pub_key}";
     
   body
-    div(class="container")
-      div(class="row infos")
-        div(class="col-xs-12")
-          div(class="row")
-            div(class="col-xs-12")
-              h2(class="text-center") Votre Panier 🛒
-          div(class="row group" id="productTitle")
-            div(class="col-xs-12")
-              h4 Produits 📦
-              <span class="glyphicon glyphicon-menu-right right" aria-hidden="true"></span>
-          div(class="row hidden" id="productContent")
-            div(class="col-xs-12")
-              table(class="table")
-                thead
-                  tr 
-                    th QTE
-                    th Produit
-                    th Prix
-                tbody
-                  each selection, index in cart.selections
-                    tr
-                      td= selection.quantity
-                      td= titles[index]
-                      td #{selection.totalPriceVariant}€
-          div(class="row group" id="addressTitle")
-            div(class="col-xs-12")
-              h4 Adresse de livraison 🏠
-              <span class="glyphicon glyphicon-menu-right right" aria-hidden="true"></span>
-          div(class="row hidden" id="addressContent")
-            div(class="col-xs-12")
-              address
-                strong #{cart.user.firstName} #{cart.user.lastName} 
-                br
-                | #{cart.shippingAddress.streetNumber} #{cart.shippingAddress.route} 
-                br
-                | #{cart.shippingAddress.postalCode} #{cart.shippingAddress.locality}
-          div(class="row group" id="recapTitle")
-            div(class="col-xs-12")
-              h4 Récapitulatif 📝
-              <span class="glyphicon glyphicon-menu-right right" aria-hidden="true"></span>
-          div(class="row hidden" id="recapContent")
-            div(class="col-xs-12")
-              table(class="table")
-                thead
-                  tr 
-                    th
-                    th 
-                tbody
+    div(class="container-fluid")
+      div(class="col-xs-12" id='mainCol')
+        div(class="row")
+          div(class="col-xs-12")
+            h2(class="text-center") Votre Panier 🛒
+        div(class="row group" id="productTitle")
+          div(class="col-xs-12")
+            h4 Produits 📦
+            <span class="glyphicon glyphicon-menu-right right"aria-hidden="true"></span>
+        div(class="row" id="productContent")
+          div(class="col-xs-12")
+            table(class="table")
+              thead
+                tr 
+                  th QTE
+                  th Produit
+                  th Prix
+              tbody
+                each selection, index in cart.selections
                   tr
-                    td Livraison
-                    td 
-                      strong Gratuite
-                  tr
-                    td Sous Total
-                    td 
-                      strong #{cart.totalPrice}€
-                  tr
-                    td Total
-                    td 
-                      strong #{cart.totalPrice}€
-    div(class="fixed-bottom")
-      div(class="row")
-        div(class="col-xs-12")
-          div(class="row")
-            div(class="col-xs-12")
-              h4 Paiement Sécurisé de #{cart.totalPrice}€ 🔒
-          div(class="row")
-            div(class="col-xs-12")
-              form(id="payment-form")
-                div(class="form-row")
-                  label(for="card-element") Renseignez vos coordonnées bancaires
-                  div(id="card-element")
-                  div(id="card-errors")
-                  div(id="card-success")
-                input(type="hidden" id="cartId" value=cart.id)
-                button(type="submit" class="btn btn-success btn-block btn-lg" id="buttonPay") PAYER #{cart.totalPrice}€
+                    td= selection.quantity
+                    td= titles[index]
+                    td #{selection.totalPriceVariant}€
+        div(class="row group" id="personalInfos")
+          div(class="col-xs-12")
+            h4(id='infosTitleLabel') Informations Personnelles 
+            <span class="glyphicon glyphicon-menu-right right" aria-hidden="true"></span>
+        div(class="row hidden" id="infosContent")
+          div(class="col-xs-12")
+            form(class="form-horizontal")
+              div(class="form-group" id='emailDiv')
+                label(for='inputEmail' class='col-sm-1 control-label') Email
+                div(class="col-sm-4")
+                  input(type='email' class='form-control' id='inputEmail' placeholder='Email')
+              div(class="form-group" id='phoneDiv')
+                label(for='inputPhone' class='col-sm-1 control-label') Téléphone
+                div(class="col-sm-4")
+                  input(type='tel' class='form-control' id='inputPhone' placeholder='Téléphone' pattern='[0-9]*')
+        div(class="row group" id="addressTitle")
+          div(class="col-xs-12")
+            h4(id='addressTitleLabel') Adresse de livraison 🏠
+            <span class="glyphicon glyphicon-menu-right right" aria-hidden="true"></span>
+        div(class="row hidden" id="addressContent")
+          div(class="col-xs-12")
+            form(class='form-horizontal' id='address-form')
+              div(class='form-group')
+                label(for='fullNameInput' class='col-sm-2 control-label') Nom et Prénom 
+                div(class='col-sm-6')
+                  input(type='text' class='form-control' id='fullNameInput' placeholder='Nom')
+              div(class='form-group')
+                label(for='addressInput' class='col-sm-2 control-label') Adresse
+                div(class='col-sm-6')
+                  input(type='text' class='form-control' id='addressInput' placeholder='Adresse')
+              div(class='form-group')
+                label(for='postalCodeInput' class='col-sm-2 control-label') Code Postal
+                div(class='col-sm-6')
+                  input(type='text' class='form-control' id='postalCodeInput' placeholder='Code Postal')
+              div(class='form-group')
+                label(for='cityInput' class='col-sm-2 control-label') Ville
+                div(class='col-sm-6')
+                  input(type='text' class='form-control' id='cityInput' placeholder='Ville')
+              div(class='form-group')
+                label(for='countryInput' class='col-sm-2 control-label') Pays
+                div(class='col-sm-6')
+                  input(type='text' class='form-control' id='countryInput' placeholder='Pays')
+              div(class='form-group')
+                div(class='col-sm-offset-2 col-sm-6')
+                  button(type='submit' class='btn btn-default') Valider
+            div(class='row hidden' id='displayAddress')
+              div(class='col-sm-12')
+                div(class='row')
+                  div(class='col-sm-6')
+                    address(id='displayAddressContent')
+                div(class='row')
+                  div(class='col-sm-6')
+                    button(class='btn btn-default' id='address-modify-btn') Modifier
+        div(class="row group" id="recapTitle")
+          div(class="col-xs-12")
+            h4 Récapitulatif 📝
+            <span class="glyphicon glyphicon-menu-right right" aria-hidden="true"></span>
+        div(class="row hidden" id="recapContent")
+          div(class="col-xs-12")
+            table(class="table")
+              thead
+                tr 
+                  th
+                  th 
+              tbody
+                tr
+                  td Livraison
+                  td 
+                    strong Gratuite
+                tr
+                  td Sous Total
+                  td 
+                    strong #{cart.totalPrice}€
+                tr
+                  td Total
+                  td 
+                    strong #{cart.totalPrice}€
+        div(class="row" id='pay')
+          div(class="col-xs-12")
+            div(class="row")
+              div(class="col-xs-12")
+                h4 Paiement Sécurisé de #{cart.totalPrice}€ 🔒
+            div(class="row")
+              div(class="col-xs-12")
+                form(id="payment-form")
+                  div(class="form-row")
+                    label(for="card-element") Renseignez vos coordonnées bancaires
+                    div(id="card-element")
+                    div(id="card-errors")
+                    div(id="card-success")
+                  input(type="hidden" id="cartId" value=cart.id)
+                  button(type="submit" class="btn btn-success btn-block btn-lg" id="buttonPay") PAYER #{cart.totalPrice}€
+      
   script(type="text/javascript" src="/javascript/checkout.js")
             
         

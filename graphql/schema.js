@@ -37,6 +37,7 @@ const rootSchema = [`
 
   input AddressInput {
     recipientName: String
+    address: String
     streetNumber : String!
     route : String!
     locality : String!

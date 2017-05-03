@@ -648,10 +648,10 @@ function sendReceipt(order){
               payment_method: payment_method,
               elements : elements,
               address : {
-                street_1 : `${order.shippingAddress.streetNumber} ${order.shippingAddress.route}`,
+                street_1 : `${order.shippingAddress.address}`,
                 city: `${order.shippingAddress.locality}`,
                 postal_code: `${order.shippingAddress.postalCode}`,
-                state: `${order.shippingAddress.region}`,
+                state: `${order.shippingAddress.country}`,
                 country: `${order.shippingAddress.country}`
               },
               timestamp: moment(order.chargeDate).unix(),

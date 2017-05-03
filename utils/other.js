@@ -1,5 +1,6 @@
 import _ from "lodash";
 import logging from '../lib/logging';
+import rp from 'request-promise';
 
 function parseAccessTokenResponse(response) {
   if(response.access_token){
@@ -22,5 +23,35 @@ function isJson(str) {
     return true;
 }
 
-exports.parseAccessTokenResponse = parseAccessTokenResponse;
-exports.isJson = isJson;
+function completeAddress(shippingAddress){
+
+  return new Promise((resolve, reject) => {
+    const query = `${shippingAddress.address} ${shippingAddress.postalCode} ${shippingAddress.locality} ${shippingAddress.country}`;
+    console.log(query);
+    var options = {
+      uri: 'https://maps.googleapis.com/maps/api/place/textsearch/json',
+      qs: {
+        key: "AIzaSyAgFU6DKpNbfbrdNGdXYXV_LbcABEqjN_E",
+        query: query
+      },
+      method: 'GET'
+    }
+
+    rp(options).then((parsedBody) => {
+      console.log(parsedBody);
+      logging.info(parsedBody);
+      resolve(parsedBody);
+    }).catch((err) => {
+      reject(err);
+    });
+  });
+
+
+}
+
+
+module.exports = {
+  parseAccessTokenResponse,
+  isJson,
+  completeAddress
+};

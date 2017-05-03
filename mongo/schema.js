@@ -24,6 +24,7 @@ export const schema = [`
 
   type Address {
     recipientName: String
+    address: String
     streetNumber: String
     route : String
     locality : String
