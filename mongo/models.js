@@ -49,10 +49,6 @@ const UserSchema = mongoose.Schema({
       ref: 'Shop',
       index: true
     },
-    isUnknown: {
-      type: Boolean,
-      default: true
-    },
     firstName: String,
     lastName: String,
     email: String,
@@ -69,10 +65,17 @@ const UserSchema = mongoose.Schema({
       ref: 'Ad'
     },
     lastAdReferal : {
+      referral: String,
       source: String,
       typeAd: String,
       ad_id: String
-    }
+    },
+    referral : {
+      referral: String,
+      source: String,
+      typeRef: String,
+      ad_id: String
+    },
 }, {
   timestamps: true
 });
@@ -123,9 +126,11 @@ UserSchema.statics.createOrFindUser = function(shop, messageObject){
 
   let facebookUserId;
   let isEcho;
+  let referral = null;
   if(messageObject.postback){
     facebookUserId = messageObject.sender.id;
     isEcho = false;
+    if(messageObject.postback.referral) referral = messageObject.postback.referral;
   }
   else{
     facebookUserId = (messageObject.message.is_echo) ? messageObject.recipient.id : messageObject.sender.id
@@ -147,7 +152,7 @@ UserSchema.statics.createOrFindUser = function(shop, messageObject){
       }
       else if(!isEcho){
         logging.info("User NOT found");
-        User.createFromFacebook(shop, facebookUserId).then((res) => {
+        User.createFromFacebook(shop, facebookUserId, referral).then((res) => {
           resolve(res);
         }).catch((err) => {
           reject(err);
@@ -158,6 +163,27 @@ UserSchema.statics.createOrFindUser = function(shop, messageObject){
         resolve();
       }
 
+    }).catch((err) => {
+      reject(err);
+    });
+
+  })
+}
+
+
+UserSchema.statics.createFromReferral = function(message){
+
+  return new Promise((resolve, reject) => {
+
+    const referral = message.referral;
+
+    Shop.findOne({pageId: message.recipient.id}).then((shop) => {
+      if(!shop) throw new Error(`We don't know the shop with the page Id : ${message.recipient.id}`);
+
+      return User.createFromFacebook(shop, message.sender.id, referral);
+    }).then((user) => {
+      //TODO : Do something depending on the referral
+      resolve();
     }).catch((err) => {
       reject(err);
     });
@@ -176,7 +202,7 @@ UserSchema.methods.getInfos = function(shop){
 
     getFacebookUserInfos(shop, user.facebookId).then((userJson) => {
       logging.info(userJson)
-      if(userJson === false) resolve(user);
+      if(userJson === false) throw 'nouser'
       else{
         if(userJson.first_name) this.firstName = userJson.first_name;
         if(userJson.last_name) this.lastName = userJson.last_name;
@@ -185,10 +211,13 @@ UserSchema.methods.getInfos = function(shop){
         if(userJson.timezone) this.timezone = userJson.timezone;
         if(userJson.gender) this.gender = userJson.gender;
         if(userJson.last_ad_referral){
-          user.lastAdReferal = {};
-          user.lastAdReferal.source = userJson.last_ad_referral.source;
-          user.lastAdReferal.ad_id = userJson.last_ad_referral.ad_id;
-          user.lastAdReferal.typeAd = userJson.last_ad_referral.type;
+          user.lastAdReferal = {
+            source: userJson.last_ad_referral.source,
+            typeAd: userJson.last_ad_referral.type,
+            ad_id: userJson.last_ad_referral.ad_id
+          }
+
+          if(userJson.last_ad_referral.ref) user.lastAdReferal.referral = userJson.last_ad_referral.ref;
         }
 
         if(userJson.last_ad_referral){
@@ -201,19 +230,30 @@ UserSchema.methods.getInfos = function(shop){
     }).then((user) => {
       resolve(user);
     }).catch((err) => {
-      logging.error(err);
-      reject(err);
+      if(err === 'nouser') resolve();
+      else{
+        logging.error(err);
+        reject(err);
+      }
     });
   });
 }
 
-UserSchema.statics.createFromFacebook = function(shop, userFacebookId){
+UserSchema.statics.createFromFacebook = function(shop, userFacebookId, referral){
 
   return new Promise((resolve, reject) => {
 
     let user = new User({facebookId : userFacebookId});
-    logging.info(`Shop : ${shop.toString()}`)
     user.shop = shop;
+
+    if(referral){
+      user.referral = {
+        source: referral.source,
+        typeRef: referral.type,
+        referral: referral.ref
+      }
+      if(referral.ad_id) user.referral.ad_id = referral.ad_id;
+    }
 
 
     user.save().then((user) => {
@@ -223,7 +263,7 @@ UserSchema.statics.createFromFacebook = function(shop, userFacebookId){
       if(!user) throw new Error(`Problem getting the infos for the user ${user.id}`);
       return Conversation.findOrCreate(user, shop);
     }).then((conversation) => {
-      if(!conversation) throw new Error("Problem creatin a conversation for the user");
+      if(!conversation) throw new Error("Problem creating a conversation for the user");
 
       resolve({user:user, conversation: conversation});
     }).catch((err) => {
@@ -247,6 +287,44 @@ UserSchema.methods.addAd = function(shop, adId){
     }).catch((err) => {
       reject(err);
     });
+
+  });
+
+}
+
+UserSchema.statics.gotReferral = function(message){
+
+  const userId = message.sender.id;
+  const referral = message.referral;
+  return new Promise((resolve, reject) => {
+
+    User.findOne({facebookId: userId}).populate("shop").then((user) => {
+      if(!user){
+        return User.createFromReferral(message);
+      }
+      else{
+        logging.info(referral);
+        if(referral.source) user.referral.source = referral.source;
+        if(referral.type) user.referral.typeRef = referral.type;
+        if(referral.ref) user.referral.referral = referral.ref;
+        logging.info(user.toString());
+        if(referral.ad_id){
+          user.referral.ad_id = referral.ad_id;
+          return user.getInfos(user.shop);
+        }
+        else return user.save();
+      }
+
+
+    }).then(() => {
+      //TODO: Do something depending the referral
+      resolve();
+    }).catch((err) => {
+      if(err === "noAd") resolve();
+      reject(err);
+    })
+
+
 
   });
 

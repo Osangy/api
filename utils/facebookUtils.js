@@ -54,6 +54,11 @@ exports.manageEntry = function(entry){
         logging.info(`source : ${messagingEvent.referral.source}`);
         logging.info(`type : ${messagingEvent.referral.type}`);
         //TODO: Update user with referral
+        User.gotReferral(messagingEvent).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        });
       }
     });
 
@@ -301,6 +306,7 @@ function managePostback(shop, message){
 
         //Get started with the shop conversation
         case "GET_STARTED":
+        //TODO: Manage depending on the referral
           messaging.sendActionWhenGetStarted(shop, customerFacebookId).then(() => {
             resolve();
           }).catch((err) => {
