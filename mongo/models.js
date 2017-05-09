@@ -14,6 +14,7 @@ import analytics from '../lib/analytics';
 import messaging from '../utils/messaging';
 import other from '../utils/other';
 import mailgun from '../utils/mailgun'
+import redis from '../utils/redis';
 
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 Promise.promisifyAll(require("mongoose"));
@@ -85,7 +86,7 @@ UserSchema.pre('save', function (next) {
 
 //After a message save we increment the nb of message of the conversation
 UserSchema.post('save', function(message) {
-  if(this.newUknown){
+  if(this.wasNew){
     analytics.trackNewCustomer(this);
     let cart = new Cart({
       shop : this.shop,
@@ -114,112 +115,124 @@ UserSchema.methods.getFullName = function(){
 }
 
 
-  /*
-  * Find a user, if does not exist create it
-  */
+/*
+* Find a user, if does not exist create it
+*/
 
-UserSchema.statics.createOrFindUser = function(user_id, shop, adId){
+UserSchema.statics.createOrFindUser = function(shop, messageObject){
 
-    return new Promise((resolve, reject) => {
-
-      User.findOne({facebookId : user_id}).then((user) => {
-
-        if(user){
-          user.updateIfNeeded(shop, adId).then((user) => {
-            resolve(user);
-          }).catch((err) => {
-            reject(err);
-          });
-        }
-        else{
-          logging.info("User NOT found");
-
-          User.createFromFacebook(user_id, shop, adId).then(function(user){
-            resolve(user);
-          }).catch(function(err){
-            reject(err);
-          });
-
-        }
-
-      }).catch(function(err){
-        reject(err);
-      });
-
-    })
+  let facebookUserId;
+  let isEcho;
+  if(messageObject.postback){
+    facebookUserId = messageObject.sender.id;
+    isEcho = false;
   }
+  else{
+    facebookUserId = (messageObject.message.is_echo) ? messageObject.recipient.id : messageObject.sender.id
+    isEcho = messageObject.message.is_echo;
+  }
+
+  return new Promise((resolve, reject) => {
+
+    User.findOne({facebookId : facebookUserId}).then((user) => {
+
+      //TODO: Update user if referral in message
+      if(user){
+        Conversation.findOne({user:user,shop:shop}).then((conversation) => {
+          if(!conversation) throw new Error(`We did not find the conversation for user ${user.id}`)
+          resolve({user: user, conversation: conversation});
+        }).catch((err) => {
+          reject(err);
+        });
+      }
+      else if(!isEcho){
+        logging.info("User NOT found");
+        User.createFromFacebook(shop, facebookUserId).then((res) => {
+          resolve(res);
+        }).catch((err) => {
+          reject(err);
+        });
+
+      }
+      else{
+        resolve();
+      }
+
+    }).catch((err) => {
+      reject(err);
+    });
+
+  })
+}
 
   /*
   * Create a user from the Facebook infos
   */
 
-UserSchema.methods.updateIfNeeded = function(shop, adId){
+UserSchema.methods.getInfos = function(shop){
 
   let user = this;
   return new Promise((resolve, reject) => {
 
-    let shouldLeave = true;
-    if(this.isUnknown) shouldLeave = false;
-    if(this.adId) shouldLeave = false;
-    if(shouldLeave) resolve(user);
-    else{
-      getFacebookUserInfos(shop, user.facebookId).then((userJson) => {
-        logging.info(userJson)
-        if(userJson === false) resolve(user);
-        else{
-          this.isUnknown = false;
-          if(userJson.first_name) this.firstName = userJson.first_name;
-          if(userJson.last_name) this.lastName = userJson.last_name;
-          if(userJson.profile_pic) this.profilePic = userJson.profile_pic;
-          if(userJson.locale) this.locale = userJson.locale;
-          if(userJson.timezone) this.timezone = userJson.timezone;
-          if(userJson.gender) this.gender = userJson.gender;
-          if(userJson.last_ad_referral){
-            user.lastAdReferal = {};
-            user.lastAdReferal.source = userJson.last_ad_referral.source;
-            user.lastAdReferal.ad_id = userJson.last_ad_referral.ad_id;
-            user.lastAdReferal.typeAd = userJson.last_ad_referral.type;
-          }
-
-          if(userJson.last_ad_referral){
-            return this.addAd(shop, userJson.last_ad_referral.ad_id);
-          }
-          else if(adId){
-            return this.addAd(shop, adId);
-          }
-          else{
-            return this.save();
-          }
+    getFacebookUserInfos(shop, user.facebookId).then((userJson) => {
+      logging.info(userJson)
+      if(userJson === false) resolve(user);
+      else{
+        if(userJson.first_name) this.firstName = userJson.first_name;
+        if(userJson.last_name) this.lastName = userJson.last_name;
+        if(userJson.profile_pic) this.profilePic = userJson.profile_pic;
+        if(userJson.locale) this.locale = userJson.locale;
+        if(userJson.timezone) this.timezone = userJson.timezone;
+        if(userJson.gender) this.gender = userJson.gender;
+        if(userJson.last_ad_referral){
+          user.lastAdReferal = {};
+          user.lastAdReferal.source = userJson.last_ad_referral.source;
+          user.lastAdReferal.ad_id = userJson.last_ad_referral.ad_id;
+          user.lastAdReferal.typeAd = userJson.last_ad_referral.type;
         }
-      }).then((user) => {
-        resolve(user);
-      }).catch((err) => {
-        logging.error(err);
-        reject(err);
-      });
-    }
+
+        if(userJson.last_ad_referral){
+          return this.addAd(shop, userJson.last_ad_referral.ad_id);
+        }
+        else{
+          return this.save();
+        }
+      }
+    }).then((user) => {
+      resolve(user);
+    }).catch((err) => {
+      logging.error(err);
+      reject(err);
+    });
   });
 }
 
-UserSchema.statics.createFromFacebook = function(user_id, shop, adId){
+UserSchema.statics.createFromFacebook = function(shop, userFacebookId){
 
-    return new Promise(function(resolve, reject){
+  return new Promise((resolve, reject) => {
 
-      let user = new User({facebookId : user_id});
-      user.shop = shop;
+    let user = new User({facebookId : userFacebookId});
+    logging.info(`Shop : ${shop.toString()}`)
+    user.shop = shop;
 
 
-      user.save().then((user) => {
-        return user.updateIfNeeded(shop, adId);
-      }).then((user) => {
-        resolve(user);
-      }).catch(function(err){
-        logging.error(err);
-        reject(err);
-      });
+    user.save().then((user) => {
+      if(!user) throw new Error(`Problem creating the user`);
+      return user.getInfos(shop);
+    }).then((user) => {
+      if(!user) throw new Error(`Problem getting the infos for the user ${user.id}`);
+      return Conversation.findOrCreate(user, shop);
+    }).then((conversation) => {
+      if(!conversation) throw new Error("Problem creatin a conversation for the user");
+
+      resolve({user:user, conversation: conversation});
+    }).catch((err) => {
+      logging.error(err);
+      reject(err);
     });
+  });
 
-  }
+}
 
 UserSchema.methods.addAd = function(shop, adId){
 
@@ -744,8 +757,8 @@ MessageSchema.post('save', function(message, next) {
 MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
 
   //See if the emssage was sent by the page or the user
-  let user_id = (messageObject.message.is_echo) ? messageObject.recipient.id : messageObject.sender.id
   let user;
+  let conversation;
   let finalMessage = null;
 
   let adId = null;
@@ -757,55 +770,20 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
   return new Promise((resolve, reject) => {
 
     //Capture the source if there is one
-    User.createOrFindUser(user_id, shop, adId).then((userObject) => {
-      user = userObject;
+    User.createOrFindUser(shop, messageObject).then((res) => {
+      if(!res) throw "nouser"
 
-      //See if conversation exists, or create one
-      return Conversation.findOrCreate(userObject, shop);
-    }).then((conversationObject) => {
+      user = res.user;
+      conversation = res.conversation;
 
-
-      //Create the message
-      let message = new Message({
-        isEcho : (messageObject.message.is_echo) ? true : false,
-        conversation : conversationObject,
-        timestamp : moment(messageObject.timestamp),
-        mid: messageObject.message.mid,
-        shop: shop
-      });
-
-      if(messageObject.message.quick_reply){
-        message.quick_reply = messageObject.message.quick_reply.payload;
-      }
-
-      //Set the right user kind
-      if(messageObject.message.is_echo){
-        message.recipient = user;
-      }
-      else{
-        message.sender = user;
-      }
-
-      if(messageObject.message.text){
-        message.text = messageObject.message.text;
-      }
-
-      if(messageObject.message.attachments){
-        message.manageAttachments(messageObject.message.attachments);
-      }
-
-      if(messageObject.message.metadata){
-        if(!adId) message.echoType = messageObject.message.metadata;
-      }
-
-      //TODO : increment message counter and date in conversation
-      return message.save();
+      return Message.createMessage(shop, user, conversation, messageObject);
     }).then((message) => {
       finalMessage = message;
       return shop.sendAutoMessageIfClosed(message);
     }).then(() => {
       resolve(finalMessage);
     }).catch((err) => {
+      if(err == "nouser") resolve();
       reject(err);
     });
 
@@ -813,9 +791,59 @@ MessageSchema.statics.createFromFacebook = (messageObject, shop) => {
 
 }
 
+MessageSchema.statics.createMessage = (shop, user, conversation, messageObject) => {
+  return new Promise((resolve, reject) => {
+    let finalMessage;
+
+    let message = new Message({
+      isEcho : (messageObject.message.is_echo) ? true : false,
+      conversation : conversation,
+      timestamp : moment(messageObject.timestamp),
+      mid: messageObject.message.mid,
+      shop: shop
+    });
+
+    if(messageObject.message.quick_reply){
+      message.quick_reply = messageObject.message.quick_reply.payload;
+    }
+
+    //Set the right user kind
+    if(messageObject.message.is_echo){
+      message.recipient = user;
+    }
+    else{
+      message.sender = user;
+    }
+
+    if(messageObject.message.text){
+      message.text = messageObject.message.text;
+    }
+
+    if(messageObject.message.attachments){
+      message.manageAttachments(messageObject.message.attachments);
+    }
+
+    if(messageObject.message.metadata){
+      try{
+        const metadata = JSON.parse(messageObject.message.metadata);
+        if(!metadata.ad_id) message.echoType = messageObject.message.metadata;
+      } catch(e) {
+        message.echoType = messageObject.message.metadata;
+      }
+    }
+
+    message.save().then((message) => {
+      resolve(message);
+    }).catch((err) => {
+      reject(err);
+    });
+
+  });
+}
+
 
 MessageSchema.statics.createFromShopToFacebook = (type, content, userFacebookId, shop) => {
-  return new Promise(function(resolve, reject){
+  return new Promise((resolve, reject) => {
 
     let user;
     //See if user exists, or create one
@@ -870,7 +898,6 @@ MessageSchema.statics.createFromFacebookEcho = (messageObject, shop) => {
 
   return new Promise((resolve, reject) => {
 
-    //Find a message with this mid
     Message.findOne({ mid: messageObject.message.mid }).populate("conversation shop").then((message) => {
       //Update message if we already have it in the database
       if(message){
@@ -887,7 +914,7 @@ MessageSchema.statics.createFromFacebookEcho = (messageObject, shop) => {
     }).catch((err) => {
       logging.error(err.message);
       reject(err);
-    })
+    });
 
   });
 
@@ -1019,37 +1046,28 @@ ConversationSchema.post('save', function(conversation) {
 
 ConversationSchema.statics.findOrCreate = function(user, shop){
 
-  return new Promise(function(resolve, reject){
-    Conversation.findOne({ shop: shop._id, user: user._id}).then(function(conversation){
+  return new Promise((resolve, reject) => {
+    Conversation.findOne({ shop: shop._id, user: user._id}).then((conversation) => {
 
       if(conversation){
-        if(!user.isUnknown && !conversation.isAvailable){
-          logging.info("Made Available");
-          conversation.isAvailable = true;
-          conversation.save().then((conversation) => {
-            resolve(conversation);
-          }).catch((err) => {
-            reject(err);
-          })
-        }
-        else{
-          resolve(conversation);
-        }
+        resolve(conversation);
       }
       else{
+        let finalConversation;
         logging.info("NOT found a conversation, need to create one");
         conversation = new Conversation({ shop : shop, user : user});
-
-        if(!user.isUnknown) conversation.isAvailable = true;
-
-        conversation.save().then(function(conversation){
-          resolve(conversation);
-        }).catch(function(err){
+        conversation.save().then((conversation) => {
+          finalConversation = conversation;
+          return conversation.addRedisMessages(shop, user);
+        }).then(() => {
+          pubsub.publish('newConversationChannel', conversation);
+          resolve(finalConversation);
+        }).catch((err) => {
           reject(err);
         });
       }
 
-    }).catch(function(err){
+    }).catch((err) => {
       reject(err);
     });
 
@@ -1101,7 +1119,7 @@ ConversationSchema.statics.justRead = function(pageId, userFbId, watermark){
 
 ConversationSchema.statics.newMessage = function(message){
 
-  return new Promise(function(resolve, reject){
+  return new Promise((resolve, reject) => {
 
     let actions = [];
 
@@ -1131,6 +1149,32 @@ ConversationSchema.statics.newMessage = function(message){
 
   });
 
+
+}
+
+ConversationSchema.methods.addRedisMessages = function(shop, user){
+
+  return new Promise((resolve, reject) => {
+    const conversation = this;
+    redis.retrieveMessages(user.facebookId, shop.pageId).then((messages) => {
+      if(!messages) throw "nomessages";
+      if(messages.length == 0) throw "nomessages";
+
+      let messagesActions = [];
+      messages.forEach((message) => {
+        messagesActions.push(Message.createMessage(shop, user, conversation, JSON.parse(message)));
+      });
+
+      return Promise.all(messagesActions);
+    }).then(() => {
+      return redis.deleteMessages(user.facebookId, shop.pageId);
+    }).then(() => {
+      resolve();
+    }).catch((err) => {
+      if(err === "nomessages") resolve();
+      else reject(err);
+    })
+  });
 
 }
 

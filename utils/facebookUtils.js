@@ -10,6 +10,7 @@ import { pubsub } from '../graphql/subscriptions';
 import background from '../lib/background';
 import messaging from './messaging';
 import flows from '../flows';
+import redis from './redis';
 import _ from 'lodash';
 
 Promise.promisifyAll(require("mongoose"));
@@ -25,15 +26,15 @@ var AttachmentTypes = {
 exports.manageEntry = function(entry){
 
   return new Promise((resolve, reject) => {
-    let pageID = entry.id;
-    let timeOfEvent = entry.time;
-
-
+    const pageID = entry.id;
 
     //Remove the entries that does not have a message object
     let rightMessages = [];
     let readMessages = [];
     let postbackMessages = [];
+
+
+    //Detect message category
     entry.messaging.forEach((messagingEvent) => {
 
       //Event with a message
@@ -47,28 +48,42 @@ exports.manageEntry = function(entry){
       else if(messagingEvent.read){
         readMessages.push(messagingEvent)
       }
-
-      //TODO: Message delivery
+      else if(messagingEvent.referral){
+        logging.info("referal");
+        logging.info(`referral : ${messagingEvent.referral.ref}`);
+        logging.info(`source : ${messagingEvent.referral.source}`);
+        logging.info(`type : ${messagingEvent.referral.type}`);
+        //TODO: Update user with referral
+      }
     });
 
+    //Manage regular messages
     if(rightMessages.length > 0){
       logging.info(`The page ID is ${pageID}`)
-      Shop.findOne({ pageId: pageID }, (err, shop) => {
-        if(err) reject(err);
-        if(!shop) reject(new Error("Does not have a page with this ID"));
+      Shop.findOne({ pageId: pageID }).then((shop) => {
+        if(!shop) throw new Error("Does not have a page with this ID");
 
         //Mark the messages as received
         if(!rightMessages[0].message.is_echo) sendAction(shop, rightMessages[0].sender.id);
 
-        Promise.each(rightMessages, (messagingEvent) => {
-          return manageMessage(messagingEvent, shop);
-        }).then(() => {
+        logging.info(shop.toString());
+
+        let messagesActions = [];
+        rightMessages.forEach((message) => {
+
+          messagesActions.push(manageMessage(message, shop))
+        })
+
+        Promise.all(messagesActions).then(() => {
           resolve();
         }).catch((error) => {
           reject(error);
         });
-      });
+      }).catch((err) => {
+        reject(err);
+      })
     }
+    //Manage webhook message that let us know that a user read a message
     else if(readMessages.length > 0){
       Conversation.justRead(pageID, readMessages[readMessages.length - 1].sender.id, readMessages[readMessages.length - 1].read.watermark).then((conversation) => {
         resolve();
@@ -76,15 +91,18 @@ exports.manageEntry = function(entry){
         reject(err);
       })
     }
+    //Manage postback messages
     else if(postbackMessages.length > 0){
       Shop.findOne({ pageId: pageID }, (err, shop) => {
         if(err) reject(err);
         if(!shop) reject(new Error(`No shop with this id : ${pageID}`));
 
+        let postbackActions = [];
+        postbackMessages.forEach((messagingEvent) => {
+          postbackActions.push(managePostback(shop, messagingEvent));
+        })
 
-        Promise.each(postbackMessages, (messagingEvent) => {
-          return managePostback(shop, messagingEvent);
-        }).then(() => {
+        Promise.all(postbackActions).then(() => {
           resolve();
         }).catch((error) => {
           reject(error);
@@ -120,14 +138,25 @@ function manageMessage(messageObject, shop){
         resolve();
       }
       else{
-        Message.createFromFacebookEcho(messageObject, shop).then(function(message){
-          //Push to the agent the message if he did not send it
-          //TODO : We will need to push anyway if we gave multiple agent
-          if(message.echoType != "standard"){
-            pubsub.publish('messageAdded', message);
+        Message.createFromFacebookEcho(messageObject, shop).then((message) => {
+
+          //If we don't have a message, it means that we have no user yet and no acess to him, so we save it on redis
+          if(!message){
+            redis.saveMessage(messageObject).then(() => {
+              resolve();
+            }).catch((err) => {
+              reject(err);
+            });
+          }
+          else{
+            //Push to the agent the message if he did not send it
+            //TODO : We will need to push anyway if we gave multiple agent
+            if(message.echoType != "standard"){
+              pubsub.publish('messageAdded', message);
+            }
+            resolve(message);
           }
 
-          resolve(message);
         }).catch((err) => {
           reject(err);
         })
@@ -263,116 +292,107 @@ function managePostback(shop, message){
     const spliitedPayload = _.split(payload, ':');
     const introPayload = spliitedPayload[0];
 
+    User.createOrFindUser(shop, message).then((res) => {
+      if(!res) throw new Error(`Problem getting or creating user for the postback, user facebook id : ${customerFacebookId}`);
+      const user = res.user;
+      const conversation = res.conversation;
 
-    switch (introPayload) {
+      switch (introPayload) {
 
-      //Get started with the shop conversation
-      case "GET_STARTED":
-        messaging.sendActionWhenGetStarted(shop, customerFacebookId).then(() => {
-          resolve();
-        }).catch((err) => {
-          reject(err);
-        });
-        break;
+        //Get started with the shop conversation
+        case "GET_STARTED":
+          messaging.sendActionWhenGetStarted(shop, customerFacebookId).then(() => {
+            resolve();
+          }).catch((err) => {
+            reject(err);
+          });
+          break;
 
-      case config.PAYLOAD_INFOS_CART:
-        User.findOne({facebookId:customerFacebookId}).then((user) => {
-          if(!user) throw new Error("No user with this facebook Id");
-          return messaging.sendInfosCartState(shop, user);
-        }).then(() => {
-          resolve();
-        }).catch((err) => {
-          reject(err);
-        });
+        case config.PAYLOAD_INFOS_CART:
+          messaging.sendInfosCartState(shop, user).then(() => {
+            resolve();
+          }).catch((err) => {
+            reject(err);
+          });
 
-        break;
-      case config.PAYLOAD_INFOS_CART_LIST_PRODUCTS:
-        User.findOne({facebookId:customerFacebookId}).then((user) => {
-          if(!user) throw new Error("No user with this facebook Id");
-          return messaging.sendListPoductsCart(shop, user);
-        }).then(() => {
-          resolve();
-        }).catch((err) => {
-          reject(err);
-        });
+          break;
+        case config.PAYLOAD_INFOS_CART_LIST_PRODUCTS:
+          messaging.sendListPoductsCart(shop, user).then(() => {
+            resolve();
+          }).catch((err) => {
+            reject(err);
+          });
 
-        break;
+          break;
 
-      case config.PAYLOAD_VALIDATE_CART:
-        User.findOne({facebookId:customerFacebookId}).then((user) => {
-          if(!user) throw new Error(`No user found with the facebook id : ${customerFacebookId}`);
-          return Cart.findOne({shop: shop, user: user});
-        }).then((cart) => {
-          if(!cart) throw new Error(`No cart found for user ${user.id} and shop ${shop.id}`);
-          if(cart.selections.length == 0) return sendMessage(shop, customerFacebookId, `Votre panier est vide. 😭`, "giveCartState");
-          return sendButtonForPayCart(shop, customerFacebookId, cart);
-        }).then(() => {
-          resolve();
-        }).catch((err) => {
-          reject(err);
-        });
-        break;
-
-
-      case "BUY_PRODUCT":
-        if(spliitedPayload.length < 2) break;
-        else{
-          Product.findOne({_id : ObjectId(spliitedPayload[1])}).then((product) => {
-            if(!product) throw new Error("No product with this id found");
-            return sendMessage(shop, customerFacebookId, product.longDescription, null);
+        case config.PAYLOAD_VALIDATE_CART:
+          Cart.findOne({shop: shop, user: user}).then((cart) => {
+            if(!cart) throw new Error(`No cart found for user ${user.id} and shop ${shop.id}`);
+            if(cart.selections.length == 0) return sendMessage(shop, customerFacebookId, `Votre panier est vide. 😭`, "giveCartState");
+            return sendButtonForPayCart(shop, customerFacebookId, cart);
           }).then(() => {
             resolve();
           }).catch((err) => {
             reject(err);
-          })
-        }
-        break;
+          });
+          break;
 
-      case "MORE_INFOS":
-        if(spliitedPayload.length < 2) resolve();
-        else{
-          messaging.sendProductInfos(shop, customerFacebookId, spliitedPayload[1], "long").then(() => {
-            resolve();
-          }).catch((err) => {
-            reject(err);
-          })
-        }
-        break;
 
-      case "MORE_PHOTOS":
-        if(spliitedPayload.length < 2) resolve();
-        else{
-          messaging.sendProductInfos(shop, customerFacebookId, spliitedPayload[1], "morePhotos").then(() => {
-            resolve();
-          }).catch((err) => {
-            reject(err);
-          })
-        }
-        break;
+        case "BUY_PRODUCT":
+          if(spliitedPayload.length < 2) break;
+          else{
+            Product.findOne({_id : ObjectId(spliitedPayload[1])}).then((product) => {
+              if(!product) throw new Error("No product with this id found");
+              return sendMessage(shop, customerFacebookId, product.longDescription, null);
+            }).then(() => {
+              resolve();
+            }).catch((err) => {
+              reject(err);
+            })
+          }
+          break;
 
-      case "ADD_CART":
-        if(spliitedPayload.length < 2) resolve();
-        else{
-          let finalUser;
-          User.findOne({'facebookId' : customerFacebookId}).then((user) => {
-            if(!user) throw new Error("No user with this facebook Id");
+        case "MORE_INFOS":
+          if(spliitedPayload.length < 2) resolve();
+          else{
+            messaging.sendProductInfos(shop, customerFacebookId, spliitedPayload[1], "long").then(() => {
+              resolve();
+            }).catch((err) => {
+              reject(err);
+            })
+          }
+          break;
 
-            finalUser = user;
-            return Product.findById(spliitedPayload[1]);
-          }).then((product) => {
-            if(!product) throw new Error(`No product with id ${spliitedPayload[1]} found`);
-            return flows.startFlow(finalUser, 'addCart', product, shop);
-          }).then((res) => {
-            resolve();
-          }).catch((err) => {
-            reject(err);
-          })
-        }
-        break;
+        case "MORE_PHOTOS":
+          if(spliitedPayload.length < 2) resolve();
+          else{
+            messaging.sendProductInfos(shop, customerFacebookId, spliitedPayload[1], "morePhotos").then(() => {
+              resolve();
+            }).catch((err) => {
+              reject(err);
+            })
+          }
+          break;
 
-      default:
-        logging.info("Does not know this postback");
-    }
+        case "ADD_CART":
+          if(spliitedPayload.length < 2) resolve();
+          else{
+            Product.findById(spliitedPayload[1]).then((product) => {
+              if(!product) throw new Error(`No product with id ${spliitedPayload[1]} found`);
+              return flows.startFlow(user, 'addCart', product, shop);
+            }).then((res) => {
+              resolve();
+            }).catch((err) => {
+              reject(err);
+            })
+          }
+          break;
+
+        default:
+          logging.info("Does not know this postback");
+      }
+
+    });
 
 
   });
