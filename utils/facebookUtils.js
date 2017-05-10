@@ -54,11 +54,15 @@ exports.manageEntry = function(entry){
         logging.info(`source : ${messagingEvent.referral.source}`);
         logging.info(`type : ${messagingEvent.referral.type}`);
         //TODO: Update user with referral
-        User.gotReferral(messagingEvent).then(() => {
-          resolve();
-        }).catch((err) => {
-          reject(err);
-        });
+        if(messagingEvent.referral.source != "ADS"){
+          User.gotReferral(messagingEvent).then(() => {
+            resolve();
+          }).catch((err) => {
+            reject(err);
+          });
+        }
+        else resolve();
+
       }
     });
 

@@ -260,13 +260,14 @@ UserSchema.statics.createFromFacebook = function(shop, userFacebookId, referral)
       if(!user) throw new Error(`Problem creating the user`);
       return user.getInfos(shop);
     }).then((user) => {
-      if(!user) throw new Error(`Problem getting the infos for the user ${user.id}`);
+      if(!user) throw "nouser"
       return Conversation.findOrCreate(user, shop);
     }).then((conversation) => {
       if(!conversation) throw new Error("Problem creating a conversation for the user");
 
       resolve({user:user, conversation: conversation});
     }).catch((err) => {
+      if(err === "nouser") resolve();
       logging.error(err);
       reject(err);
     });
