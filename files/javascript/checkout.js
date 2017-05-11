@@ -19,6 +19,8 @@ var postalAddress = null;
 var cityAddress = null;
 var countryAddress= null;
 
+console.log(cart);
+
 //elements
 var addressContent = document.getElementById('displayAddressContent');
 
@@ -50,7 +52,21 @@ var card = elements.create('card', {style: style});
 // Add an instance of the card Element into the `card-element` <div>
 card.mount('#card-element');
 
+card.addEventListener('focus', function(e) {
+  var productContent = document.getElementById('productContent');
+  productContent.className = "row hidden";
+  var addressContent = document.getElementById('addressContent');
+  addressContent.className = "row hidden";
+  var recapContent = document.getElementById('recapContent');
+  recapContent.className = "row hidden";
+  var infosContent = document.getElementById('infosContent');
+  infosContent.className = "row hidden";
 
+  var arrows = document.getElementsByClassName("glyphicon");
+  Array.prototype.forEach.call(arrows, (arrow, index) => {
+    arrow.className = "glyphicon glyphicon-menu-right right"
+  });
+})
 
 // Handle real-time validation errors from the card Element.
 card.addEventListener('change', function(event) {
@@ -267,7 +283,7 @@ function updateArrows(position){
   Array.prototype.forEach.call(arrows, (arrow, index) => {
     if(index == position) arrow.className = "glyphicon glyphicon-menu-down right"
     else arrow.className = "glyphicon glyphicon-menu-right right"
-});
+  });
 }
 
 
