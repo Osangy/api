@@ -965,7 +965,7 @@ function setPersistentMenu(shop, activate){
                 ]
               },
               {
-                title: 'Parler à un agent 🗣',
+                title: 'BIP BIP 🏃',
                 type: 'postback',
                 payload: config.PAYLOAD_TALK_TO_AGENT
               }

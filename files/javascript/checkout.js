@@ -175,7 +175,8 @@ function leaveTab(){
 
 function initAll(){
   //See if we have the address
-  if(cart.shippingAddress){
+  nameAddress = `${cart.shippingAddress.recipientName}`;
+  if(cart.shippingAddress.address){
     nameAddress = `${cart.shippingAddress.recipientName}`;
     routeAddress = `${cart.shippingAddress.address}`;
     postalAddress = `${cart.shippingAddress.postalCode}`;
@@ -183,12 +184,18 @@ function initAll(){
     countryAddress= `${cart.shippingAddress.country}`;
     document.getElementById('address-form').className = 'form-horizontal hidden';
     document.getElementById('displayAddress').className = 'row';
+    document.getElementById('addressTitleLabel').style.color = "#333333";
     addressContent.innerHTML = buildHtmlAddress();
   }
   else {
+    if(nameAddress) document.getElementById('fullNameInput').value = nameAddress;
+    if(postalAddress) document.getElementById('postalCodeInput').value = postalAddress;
+    if(routeAddress) document.getElementById('addressInput').value = routeAddress;
+    if(cityAddress) document.getElementById('cityInput').value = cityAddress;
+    if(countryAddress) document.getElementById('countryInput').value = countryAddress;
     document.getElementById('address-form').className = 'form-horizontal';
     document.getElementById('displayAddress').className = 'row hidden';
-    document.getElementById('addressTitleLabel').style.color = "#333333";
+    document.getElementById('addressTitleLabel').style.color = "#e74c3c";
   }
 
   if(cart.user.email){
@@ -360,6 +367,7 @@ form.addEventListener('submit', function(event) {
     addressContent.innerHTML = buildHtmlAddress();
     document.getElementById('address-form').className = 'form-horizontal hidden';
     document.getElementById('displayAddress').className = 'row';
+    document.getElementById('addressTitleLabel').style.color = "#333333";
     validateToPay();
   }
   else console.log("Address not complete");
