@@ -318,6 +318,14 @@ function managePostback(shop, message){
           });
           break;
 
+        case config.PAYLOAD_TALK_TO_AGENT:
+          sendMessage(shop, user.facebookId, "J'acours 🏃 ! En attendant, peux tu me dire comment je peux t'aider ?").then(() => {
+            resolve();
+          }).catch((err) => {
+            reject(err);
+          })
+          break;
+
         case config.PAYLOAD_INFOS_CART:
           messaging.sendInfosCartState(shop, user).then(() => {
             resolve();
