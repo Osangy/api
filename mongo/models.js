@@ -482,6 +482,29 @@ ShopSchema.methods.sendAutoMessageIfClosed = function(message){
 
 }
 
+ShopSchema.methods.isClosed = function(){
+
+  if(!this.closedAutoOption){
+    logging.info("not closed option");
+    return false;
+  }
+  if(!this.closedAutoOption.isActivated){
+    logging.info("not activated");
+    return false;
+  }
+  else{
+    const now = moment().tz(this.timezone);
+    const hour = now.hour();
+    if((hour < this.closedAutoOption.endHour) || (hour >= this.closedAutoOption.startHour )){
+      return true
+    }
+    else{
+      return false;
+    }
+  }
+
+}
+
   /*
   * PRODUCTS SCHEMA
   */

@@ -211,6 +211,19 @@ function managePayloadAction(shop, message){
       const introPayload = spliitedPayload[0];
 
       switch (introPayload) {
+        case config.PAYLOAD_TALK_TO_AGENT:
+          let message = "";
+          const test = shop.isClosed();
+          logging.info(test);
+          if(shop.isClosed()) message = "Désolé, je suis parti dormir 😴.\nMais dis moi comment je peut t'aider, et je reviens vers toi très vite 🏃";
+          else message = "J'acours 🏃 ! En attendant, peux tu me dire comment je peux t'aider ?"
+          sendMessage(shop, user.facebookId, message).then(() => {
+            resolve();
+          }).catch((err) => {
+            reject(err);
+          })
+          break;
+
         case config.PAYLOAD_INFOS_CART:
           messaging.sendInfosCartState(shop, user).then(() => {
             resolve();
@@ -319,7 +332,10 @@ function managePostback(shop, message){
           break;
 
         case config.PAYLOAD_TALK_TO_AGENT:
-          sendMessage(shop, user.facebookId, "J'acours 🏃 ! En attendant, peux tu me dire comment je peux t'aider ?").then(() => {
+          let message = "";
+          if(shop.isClosed()) message = "Désolé, je suis parti dormir 😴.\nMais dis moi comment je peut t'aider, et je reviens vers toi très vite 🏃";
+          else message = "J'acours 🏃 ! En attendant, peux tu me dire comment je peux t'aider ?"
+          sendMessage(shop, user.facebookId, message).then(() => {
             resolve();
           }).catch((err) => {
             reject(err);
