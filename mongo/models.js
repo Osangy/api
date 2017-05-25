@@ -463,9 +463,6 @@ ShopSchema.methods.sendAutoMessageIfClosed = function(message){
     else{
       const now = moment().tz(this.timezone);
       const hour = now.hour();
-      logging.info("HOUR");
-      logging.info(hour);
-      logging.info(this.closedAutoOption.startHour);
       if((hour < this.closedAutoOption.endHour) || (hour >= this.closedAutoOption.startHour )){
         sendMessage(this, message.sender.facebookId, this.closedAutoOption.message, "autoClosedMessage").then((message) => {
           resolve(true);
@@ -1781,6 +1778,8 @@ OrderSchema.methods.getSelectionsForFacebook = function() {
             'currency' : 'EUR',
             'image_url' : variant.product.images[0]
           };
+
+          if(variant.images.length > 0) elementObject.image_url = variant.images[0];
 
           elements.push(elementObject)
 

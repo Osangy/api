@@ -213,8 +213,6 @@ function managePayloadAction(shop, message){
       switch (introPayload) {
         case config.PAYLOAD_TALK_TO_AGENT:
           let message = "";
-          const test = shop.isClosed();
-          logging.info(test);
           if(shop.isClosed()) message = "Désolé, je suis parti dormir 😴.\nMais dis moi comment je peut t'aider, et je reviens vers toi très vite 🏃";
           else message = "J'acours 🏃 ! En attendant, peux tu me dire comment je peux t'aider ?"
           sendMessage(shop, user.facebookId, message).then(() => {
@@ -282,6 +280,18 @@ function managePayloadAction(shop, message){
               return flows.startFlow(user, 'addCart', product, shop);
             }).then((res) => {
               resolve("startFlow");
+            }).catch((err) => {
+              reject(err);
+            })
+          }
+          break;
+
+        case "MORE_PRODUCTS":
+          if(shop.pageId === "1431299583791897" || shop.pageId === "301797346904516" ){
+            Product.find({reference :{$in : ["body_un_jour_prince", "bavoir_mon_papa", "body_grosse_comme_papa", "body_bebeyonce"]}}).then((products) => {
+              return messaging.sendProductsCarousel(shop, user.facebookId, products);
+            }).then(() => {
+              resolve();
             }).catch((err) => {
               reject(err);
             })
