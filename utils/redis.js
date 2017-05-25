@@ -32,7 +32,7 @@ function initClient(){
 
 /* REDIS FUNCTIONS TO MANAGES MESSAGES */
 
-function saveMessage(messageObject){
+function saveMessage(shop, messageObject){
 
   return new Promise((resolve, reject) => {
     const listName = `messages:user:${messageObject.recipient.id}:page:${messageObject.sender.id}`;
@@ -43,12 +43,15 @@ function saveMessage(messageObject){
       if(len === 1){
         getClient().incrAsync(shopKeyName).then((len) => {
           logging.info(`(INCR) ${len} users waiting to do an action for the shop page id ${messageObject.sender.id}`);
+          shop.notConvertedUsers = len;
+          return shop.save();
+        }).then(() => {
           resolve();
         }).catch((err) => {
           reject(err);
         })
       }
-      else resolve();
+      else throw new Error(`Problem saving the message of a new user ${messageObject.recipient.id} on redis for page ${messageObject.sender.id}`);
 
     }).catch((err) => {
       reject(err);
@@ -76,18 +79,21 @@ function retrieveMessages(userId, pageId){
 
 }
 
-function deleteMessages(userId, pageId){
+function deleteMessages(shop, userId){
   return new Promise((resolve, reject) => {
 
-    const listName = `messages:user:${userId}:page:${pageId}`;
-    const shopKeyName = `customerswaiting:page:${pageId}`;
+    const listName = `messages:user:${userId}:page:${shop.pageId}`;
+    const shopKeyName = `customerswaiting:page:${shop.pageId}`;
 
     getClient().delAsync(listName).then((res) => {
       logging.info(`Delete : ${res}`);
 
       return getClient().decrAsync(shopKeyName);
     }).then((len) => {
-      logging.info(`(DECR) ${len} users waiting to do an action for the shop page id ${pageId}`);
+      logging.info(`(DECR) ${len} users waiting to do an action for the shop page id ${shop.pageId}`);
+      shop.notConvertedUsers = len;
+      return shop.save();
+    }).then(() => {
       resolve();
     }).catch((err) => {
       reject(err);

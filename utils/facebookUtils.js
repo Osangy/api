@@ -151,7 +151,7 @@ function manageMessage(messageObject, shop){
 
           //If we don't have a message, it means that we have no user yet and no acess to him, so we save it on redis
           if(!message){
-            redis.saveMessage(messageObject).then(() => {
+            redis.saveMessage(shop, messageObject).then(() => {
               resolve();
             }).catch((err) => {
               reject(err);

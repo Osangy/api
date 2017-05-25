@@ -376,6 +376,10 @@ const ShopSchema = new Schema({
     isGetStartedActivated: {
       type: Boolean,
       default: false
+    },
+    notConvertedUsers: {
+      type: Number,
+      default: 0
     }
   },
   {
@@ -1243,7 +1247,7 @@ ConversationSchema.methods.addRedisMessages = function(shop, user){
 
       return Promise.all(messagesActions);
     }).then(() => {
-      return redis.deleteMessages(user.facebookId, shop.pageId);
+      return redis.deleteMessages(shop, user.facebookId);
     }).then(() => {
       resolve();
     }).catch((err) => {

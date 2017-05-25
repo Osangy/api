@@ -264,6 +264,9 @@ export const schema = [`
     #Close option for automatic message
     closedAutoOption: ClosedAutoOption
 
+    #Users arrived but who didn't do an action that would allow us to interact with them
+    notConvertedUsers: Float
+
   }
 
   #An Order
