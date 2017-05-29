@@ -10,7 +10,7 @@ Promise.promisifyAll(require("mongoose"));
 
 function sendInfosAfterAddCart(variant, shop, customer, cart){
 
-  const firstMessage = `👉 ${variant.getTitle()}, d'un montant de ${variant.price}€, vient d'être ajouté à votre panier 🛒`;
+  const firstMessage = `👉 ${variant.getTitle()}, d'un montant de ${variant.price}€, vient d'être ajouté à ton panier 🛒`;
 
   return new Promise((resolve, reject) => {
 
@@ -49,7 +49,7 @@ function sendInfosCartState(shop, customer){
         //   }
         // ];
         const apiPayUrl = `${config.serverURL}shop/pay/${cart.id}`;
-        const message = `Votre panier contient ${cart.nbProducts} produit(s), pour un montant total de ${cart.totalPrice}€`;
+        const message = `Ton panier contient ${cart.nbProducts} produit(s), pour un montant total de ${cart.totalPrice}€`;
         const messageData = {
           recipient: {
             id: customer.facebookId
@@ -160,7 +160,7 @@ function sendListPoductsCart(shop, customer){
 
 function sendConfirmationPayment(shop, customer, cart){
 
-  const confirmationMessage = `Merci, nous avons bien reçu votre paiement de ${cart.totalPrice}€`;
+  const confirmationMessage = `Merci, nous avons bien reçu ton paiement de ${cart.totalPrice}€`;
 
   return new Promise((resolve, reject) => {
 
@@ -182,7 +182,7 @@ function sendDeliveryUpdate(shop, customer, order){
       id: customer.facebookId
     },
     message: {
-      text: `Bonjour 🙌. Votre commande vient d'être envoyée 🎉`,
+      text: `Bonjour 🙌. Ta commande vient d'être envoyée 🎉`,
       metadata: "orderStatus"
     },
     tag: "SHIPPING_UPDATE"
@@ -228,7 +228,7 @@ function sendActionWhenGetStarted(shop, futurRecipientId){
         id: futurRecipientId
       },
       message: {
-        text: "Bienvenue 🙌. Comment pouvons nous vous aider ?",
+        text: "Bienvenue 🙌. Comment pouvons nous  t'aider ?",
         quick_replies: [
           {
             content_type: "text",
@@ -324,7 +324,7 @@ function sendProductInfos(shop, facebookId, productId, whatInfos){
             title: 'Ajouter au panier 🛒',
             payload: `ADD_CART:${product.id}`
           }];
-          const message = "Vous pouvez à présent ajouter le produit à votre panier en cliquant ci-dessous 👇👇👇"
+          const message = "Tu peux à présent ajouter le produit à ton panier en cliquant ci-dessous 👇👇👇"
           return facebook.sendTextWithQuickReplies(shop, facebookId, message, replies, "sendInfos");
         }).catch((err) => {
           throw err;
@@ -414,7 +414,7 @@ function chooseProductColor(shop, user, product){
         id: user.facebookId
       },
       message: {
-        text: `Veuillez choisir une couleur dans laquelle vous souhaitez "${product.title}". (Envoyez STOP si vous ne souhaitez plus ce produit)`,
+        text: `Choisis une couleur dans laquelle tu souhaites "${product.title}". (Envoie STOP si tu ne souhaites plus ce produit)`,
         metadata: 'flow:color',
         quick_replies: []
       }
@@ -446,7 +446,7 @@ function chooseProductSize(shop, user, product){
         id: user.facebookId
       },
       message: {
-        text: `Veuillez choisir une taille dans laquelle vous souhaitez "${product.title}". (Envoyez STOP si vous ne souhaitez plus ce produit)`,
+        text: `Choisis une taille dans laquelle tu souhaites "${product.title}". (Envoie STOP si tu ne souhaites plus ce produit)`,
         metadata: 'flow:size',
         quick_replies: []
       }

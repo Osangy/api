@@ -372,7 +372,7 @@ function managePostback(shop, message){
         case config.PAYLOAD_VALIDATE_CART:
           Cart.findOne({shop: shop, user: user}).then((cart) => {
             if(!cart) throw new Error(`No cart found for user ${user.id} and shop ${shop.id}`);
-            if(cart.selections.length == 0) return sendMessage(shop, customerFacebookId, `Votre panier est vide. 😭`, "giveCartState");
+            if(cart.selections.length == 0) return sendMessage(shop, customerFacebookId, `Ton panier est vide. 😭`, "giveCartState");
             return sendButtonForPayCart(shop, customerFacebookId, cart);
           }).then(() => {
             resolve();
@@ -642,7 +642,7 @@ function sendButtonForPayCart(shop, recipientId, cart){
           type: "template",
           payload: {
             template_type: "button",
-            text: `Finissez votre achat dès maintenant en validant votre panier de ${cart.totalPrice}€, en cliquant ci-dessous.👇👇👇`,
+            text: `Finis ton achat dès maintenant en validant ton panier de ${cart.totalPrice}€, en cliquant ci-dessous.👇👇👇`,
             buttons: [
               {
                 type: "web_url",
