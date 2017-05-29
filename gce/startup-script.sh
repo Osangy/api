@@ -27,6 +27,7 @@ git clone https://source.developers.google.com/p/$PROJECTID/r/cproject-server /o
 # Install app dependencies
 cd /opt/app/api
 npm install
+npm rebuild --build-from-source google-cloud
 
 # Create a nodeapp user. The application will run as this user.
 useradd -m -d /home/nodeapp nodeapp
