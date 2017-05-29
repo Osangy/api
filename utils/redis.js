@@ -40,18 +40,16 @@ function saveMessage(shop, messageObject){
 
     getClient().rpushAsync(listName, JSON.stringify(messageObject)).then((len) => {
       logging.info(`${len} messages saved for a waiting user not yet authorized for page ${messageObject.sender.id}`);
-      if(len === 1){
-        getClient().incrAsync(shopKeyName).then((len) => {
-          logging.info(`(INCR) ${len} users waiting to do an action for the shop page id ${messageObject.sender.id}`);
-          shop.notConvertedUsers = len;
-          return shop.save();
-        }).then(() => {
-          resolve();
-        }).catch((err) => {
-          reject(err);
-        })
-      }
-      else throw new Error(`Problem saving the message of a new user ${messageObject.recipient.id} on redis for page ${messageObject.sender.id}`);
+      
+      getClient().incrAsync(shopKeyName).then((len) => {
+        logging.info(`(INCR) ${len} users waiting to do an action for the shop page id ${messageObject.sender.id}`);
+        shop.notConvertedUsers = len;
+        return shop.save();
+      }).then(() => {
+        resolve();
+      }).catch((err) => {
+        reject(err);
+      })
 
     }).catch((err) => {
       reject(err);
