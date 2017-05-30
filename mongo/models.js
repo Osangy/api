@@ -153,6 +153,7 @@ UserSchema.statics.createOrFindUser = function(shop, messageObject){
       }
       else if(!isEcho){
         logging.info("User NOT found");
+        logging.info(facebookUserId);
         User.createFromFacebook(shop, facebookUserId, referral).then((res) => {
           resolve(res);
         }).catch((err) => {

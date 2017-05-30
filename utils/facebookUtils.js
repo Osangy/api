@@ -75,8 +75,6 @@ exports.manageEntry = function(entry){
         //Mark the messages as received
         if(!rightMessages[0].message.is_echo) sendAction(shop, rightMessages[0].sender.id);
 
-        logging.info(shop.toString());
-
         let messagesActions = [];
         rightMessages.forEach((message) => {
 
@@ -135,13 +133,8 @@ function manageMessage(messageObject, shop){
     const messageText = messageObject.message.text;
     const messageAttachements = messageObject.message.attachments;
 
-    // Text in the message
-    if (messageText){
-      logging.info(messageText);
-    }
-
-
     if(messageObject.message.is_echo){
+      logging.info(`USER ID : ${messageObject.recipient.id}`);
       if(messageObject.message.attachments && messageObject.message.attachments[0].payload == null){
         logging.info("Can't treat it for the moment");
         resolve();
@@ -174,6 +167,7 @@ function manageMessage(messageObject, shop){
     }
     else{
       let finalMessage;
+      logging.info(`USER ID : ${messageObject.sender.id}`);
       Message.createFromFacebook(messageObject, shop).then((message) => {
         //Send to subscriptions the new message
         pubsub.publish('messageAdded', message);
