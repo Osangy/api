@@ -60,6 +60,7 @@ const UserSchema = mongoose.Schema({
     lastShippingAddress : addressSchema,
     lastUpdate: Date,
     lastMessageSentDate: Date,
+    offeredProducts: [String],
     adSource : {
       type: Schema.Types.ObjectId,
       ref: 'Ad'
@@ -1666,6 +1667,9 @@ OrderSchema.statics.createFromCart = function(cartId){
       cart.selections.forEach((selection) => {
         variants.push(selection.variant)
       });
+
+      logging.info("PRODUCTS IDS")
+      logging.info(productIds);
 
       oldCart = cart;
       //Create

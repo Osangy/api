@@ -38,18 +38,24 @@ function saveMessage(shop, messageObject){
     const listName = `messages:user:${messageObject.recipient.id}:page:${messageObject.sender.id}`;
     const shopKeyName = `customerswaiting:page:${messageObject.sender.id}`;
 
+    logging.info(`SAVE A MESSAGE ON REDIS FOR USER : ${messageObject.recipient.id}`);
+
     getClient().rpushAsync(listName, JSON.stringify(messageObject)).then((len) => {
       logging.info(`${len} messages saved for a waiting user not yet authorized for page ${messageObject.sender.id}`);
-      
-      getClient().incrAsync(shopKeyName).then((len) => {
-        logging.info(`(INCR) ${len} users waiting to do an action for the shop page id ${messageObject.sender.id}`);
-        shop.notConvertedUsers = len;
-        return shop.save();
-      }).then(() => {
-        resolve();
-      }).catch((err) => {
-        reject(err);
-      })
+
+      if(len === 1){
+        getClient().incrAsync(shopKeyName).then((len) => {
+          logging.info(`(INCR) ${len} users waiting to do an action for the shop page id ${messageObject.sender.id}`);
+          shop.notConvertedUsers = len;
+          return shop.save();
+        }).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        })
+      }
+      else resolve();
+
 
     }).catch((err) => {
       reject(err);

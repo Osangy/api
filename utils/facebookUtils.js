@@ -298,6 +298,18 @@ function managePayloadAction(shop, message){
           }
           break;
 
+        case "MORE_PRODUCTS_2":
+          if(shop.pageId === "1431299583791897" || shop.pageId === "301797346904516" ){
+            Product.find({reference :{$in : ["tshirt_papa_piques", "bavoir_ton_foot", "body_grosse_comme_papa", "tshirt_recherche_babysitter"]}}).then((products) => {
+              return messaging.sendProductsCarousel(shop, user.facebookId, products);
+            }).then(() => {
+              resolve();
+            }).catch((err) => {
+              reject(err);
+            })
+          }
+          break;
+
 
         default:
           logging.info("Does not know this payload");

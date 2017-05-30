@@ -112,6 +112,9 @@ export const schema = [`
     #Last Message Sent by this user
     lastMessageSentDate: Float
 
+    #Products that have already been offered to the customer
+    offeredProducts: [String]
+
     createdAt: Float
 
   }

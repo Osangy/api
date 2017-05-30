@@ -1,6 +1,6 @@
 import config from 'config';
 import Promise from 'bluebird';
-import { Shop, Message, Cart, Product } from '../mongo/models';
+import { Shop, Message, Cart, Product, User } from '../mongo/models';
 import logging from '../lib/logging';
 import moment from 'moment';
 import facebook from './facebookUtils'
@@ -348,7 +348,11 @@ function sendProductsCarousel(shop, userFacebookId, products){
 
 
   let elements = [];
+  let productsId = [];
   products.map((product) => {
+
+    productsId.push(product.id);
+
     let element = {
       title: product.title,
       image_url: product.images[0],
@@ -397,8 +401,25 @@ function sendProductsCarousel(shop, userFacebookId, products){
 
   return new Promise((resolve, reject) => {
     facebook.send(messageData, shop.pageToken).then((parsedBody) => {
-      resolve(parsedBody);
+
+      //Save the fact that we offered this product to this user
+      return User.findOne({facebookId : userFacebookId});
+    }).then((user) => {
+      if(!user) throw "nouser";
+
+      logging.info(productsId);
+
+      if(!user.offeredProducts) user.offeredProducts = productsId;
+      else{
+        const newOfferedProducts = _.union(user.offeredProducts, productsId);
+        user.offeredProducts = newOfferedProducts;
+      }
+
+      return user.save();
+    }).then((user) => {
+      resolve();
     }).catch((err) => {
+      if(err === "nouser") resolve();
       reject(err);
     })
   })
