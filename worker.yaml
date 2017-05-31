@@ -18,7 +18,6 @@ env: flex
 
 env_variables:
   SCRIPT: indexWorker.js
-  GCLOUD_PROJECT: cproject-158114
 
 health_check:
   enable_health_check: True
