@@ -1,7 +1,7 @@
 // Activate Google Cloud Trace and Debug when in production
 if (process.env.NODE_ENV === 'production') {
-  require('@google/cloud-trace').start();
-  require('@google/cloud-debug').start();
+  var agent = require('@google-cloud/trace-agent').start();
+  require('@google-cloud/debug-agent').start({ allowExpressions: true });
 }
 
 import express from "express";

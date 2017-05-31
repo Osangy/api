@@ -5,6 +5,9 @@ env: flex
 skip_files:
  - ^node_modules$
 
+env_variables:
+  GCLOUD_PROJECT: cproject-158114
+
 health_check:
   enable_health_check: True
   check_interval_sec: 5

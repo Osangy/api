@@ -1,7 +1,7 @@
 // Activate Google Cloud Trace and Debug when in production
 if (process.env.NODE_ENV === 'production') {
-  require('@google/cloud-trace').start();
-  require('@google/cloud-debug').start();
+  var agent = require('@google-cloud/trace-agent').start();
+  require('@google-cloud/debug-agent').start({ allowExpressions: true });
 }
 
 import request from 'request';
@@ -80,13 +80,10 @@ function subscribe () {
     }
 
     if(message.entry){
-      logging.info(`Received request to process entry of time ${message.entry.time}`);
-
       facebook.manageEntry(message.entry).then(() => {
-        logging.info("Finished managing an entry with success");
       }).catch((err) => {
         logging.error(err);
-      })
+      });
     }
     //Upload a file
     else if(message.fileUrl){
