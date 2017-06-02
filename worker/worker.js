@@ -1,9 +1,3 @@
-// Activate Google Cloud Trace and Debug when in production
-if (process.env.NODE_ENV === 'production') {
-  var agent = require('@google-cloud/trace-agent').start();
-  require('@google-cloud/debug-agent').start({ allowExpressions: true });
-}
-
 import request from 'request';
 import Promise from 'bluebird';
 import express from 'express';
@@ -19,6 +13,7 @@ import files from '../lib/files';
 import { Message } from '../mongo/models';
 import shop from '../utils/shop';
 import redis from '../utils/redis';
+import aiManager from '../ai/manager';
 
 
 /*
@@ -113,6 +108,10 @@ function subscribe () {
       }).catch((err) => {
         logging.error(err.message);
       })
+    }
+    else if(message.aiResponse){
+      const response = JSON.parse(message.aiResponse);
+      aiManager.manageResponseApiAi(response).then(() => logging.info('Managed API.ai response')).catch((err) => logging.error(err.message))
     }
     else{
       logging.warn("We don't know this message");

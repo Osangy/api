@@ -16,6 +16,7 @@ import other from '../utils/other';
 import mailgun from '../utils/mailgun'
 import redis from '../utils/redis';
 
+
 const bcrypt = Promise.promisifyAll(require("bcrypt-nodejs"));
 Promise.promisifyAll(require("mongoose"));
 
@@ -640,9 +641,32 @@ ProductSchema.statics.searchProducts = function(searchString, shop, limit){
       reject(err);
     });
   });
+}
 
 
+ProductSchema.statics.randomProducts = function(shop, user, categorie){
 
+  // const avoidProductsId = user.offeredProducts.map((id) => {
+  //   logging.info(id);
+  //   return new ObjectID(id);
+  // });
+
+  //logging.info(avoidProductsId);
+  let conditions = [];
+  logging.info(categorie)
+  if(categorie === 'all') conditions = [{shop: shop},{ _id : {$nin : user.offeredProducts}}]
+  else conditions = [{shop: shop},{ _id : {$nin : user.offeredProducts}}, {categories : categorie}]
+
+  return new Promise((resolve, reject) => {
+    Product.find({
+      $and: conditions}
+    ).limit(4).then((products) => {
+      if(!products) throw new Error("Problem founding products to send");
+      resolve(products);
+    }).catch((err) => {
+      reject(err);
+    });
+  });
 
 
 }
@@ -823,7 +847,7 @@ const MessageSchema = mongoose.Schema({
     quick_reply: String,
     echoType: {
         type: String,
-        enum: ['standard', 'askPayCart', 'payConfirmation', 'receipt', 'orderStatus', 'addedProductCart', "giveCartState", "listProductsCart", "autoClosedMessage", "sendInfos", "flow:size","flow:color"]
+        enum: ['standard', 'askPayCart', 'payConfirmation', 'receipt', 'orderStatus', 'addedProductCart', "giveCartState", "listProductsCart", "autoClosedMessage", "sendInfos", "flow:size","flow:color", "help", "ai"]
     },
     attachments : [attachmentSchema]
   },
@@ -1000,7 +1024,7 @@ MessageSchema.statics.createFromFacebookEcho = (messageObject, shop) => {
 
   return new Promise((resolve, reject) => {
 
-    Message.findOne({ mid: messageObject.message.mid }).populate("conversation shop").then((message) => {
+    Message.findOne({ mid: messageObject.message.mid }).populate("conversation shop user").then((message) => {
       //Update message if we already have it in the database
       if(message){
         message.timestamp = new Date(messageObject.timestamp);
@@ -1107,6 +1131,10 @@ const ConversationSchema = mongoose.Schema({
     isAvailable: {
       type: Boolean,
       default: false
+    },
+    isInRobotMode: {
+      type: Boolean,
+      default: true
     },
     lastCustomerRead: Date,
     nbUnreadMessages: {
@@ -1668,9 +1696,6 @@ OrderSchema.statics.createFromCart = function(cartId){
       cart.selections.forEach((selection) => {
         variants.push(selection.variant)
       });
-
-      logging.info("PRODUCTS IDS")
-      logging.info(productIds);
 
       oldCart = cart;
       //Create

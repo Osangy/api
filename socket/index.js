@@ -1,9 +1,3 @@
-// Activate Google Cloud Trace and Debug when in production
-if (process.env.NODE_ENV === 'production') {
-  require('@google/cloud-trace').start();
-  require('@google/cloud-debug').start();
-}
-
 import http from 'http';
 import mongoose from 'mongoose';
 import Promise from 'bluebird';

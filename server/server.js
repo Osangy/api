@@ -1,9 +1,3 @@
-// Activate Google Cloud Trace and Debug when in production
-if (process.env.NODE_ENV === 'production') {
-  var agent = require('@google-cloud/trace-agent').start();
-  require('@google-cloud/debug-agent').start({ allowExpressions: true });
-}
-
 import express from "express";
 import graphqlHTTP from "express-graphql";
 import { GraphQLSchema, GraphQLObjectType, GraphQLString } from "graphql";

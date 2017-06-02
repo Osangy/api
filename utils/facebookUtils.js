@@ -12,6 +12,9 @@ import messaging from './messaging';
 import flows from '../flows';
 import redis from './redis';
 import _ from 'lodash';
+import Ai from '../ai';
+
+let ai = new Ai();
 
 Promise.promisifyAll(require("mongoose"));
 
@@ -153,9 +156,10 @@ function manageMessage(messageObject, shop){
           else{
             //Push to the agent the message if he did not send it
             //TODO : We will need to push anyway if we gave multiple agent
-            if(message.echoType != "standard"){
-              pubsub.publish('messageAdded', message);
-            }
+            // if(message.echoType != "standard"){
+            //   pubsub.publish('messageAdded', message);
+            // }
+            pubsub.publish('messageAdded', message);
             resolve(message);
           }
 
@@ -169,6 +173,10 @@ function manageMessage(messageObject, shop){
       let finalMessage;
       logging.info(`USER ID : ${messageObject.sender.id}`);
       Message.createFromFacebook(messageObject, shop).then((message) => {
+
+        //Try API.Ai
+        ai.sendEvent(message.sender, messageObject);
+
         //Send to subscriptions the new message
         pubsub.publish('messageAdded', message);
         finalMessage = message;
@@ -209,7 +217,7 @@ function managePayloadAction(shop, message){
           let message = "";
           if(shop.isClosed()) message = "Désolé, je suis parti dormir 😴.\nMais dis moi comment je peut t'aider, et je reviens vers toi très vite 🏃";
           else message = "J'acours 🏃 ! En attendant, peux tu me dire comment je peux t'aider ?"
-          sendMessage(shop, user.facebookId, message).then(() => {
+          sendMessage(shop, user.facebookId, message, "help").then(() => {
             resolve();
           }).catch((err) => {
             reject(err);
@@ -282,25 +290,25 @@ function managePayloadAction(shop, message){
 
         case "MORE_PRODUCTS":
           if(shop.pageId === "1431299583791897" || shop.pageId === "301797346904516" ){
-            Product.find({reference :{$in : ["body_un_jour_prince", "bavoir_mon_papa", "body_grosse_comme_papa", "body_bebeyonce"]}}).then((products) => {
-              return messaging.sendProductsCarousel(shop, user.facebookId, products);
-            }).then(() => {
+            let categorie = 'all';
+            if(spliitedPayload.length > 1) categorie = spliitedPayload[1];
+            messaging.sendMoreProducts(shop, user, categorie).then(() => {
               resolve();
             }).catch((err) => {
               reject(err);
-            })
+            });
           }
           break;
 
         case "MORE_PRODUCTS_2":
           if(shop.pageId === "1431299583791897" || shop.pageId === "301797346904516" ){
-            Product.find({reference :{$in : ["tshirt_papa_piques", "bavoir_ton_foot", "body_grosse_comme_papa", "tshirt_recherche_babysitter"]}}).then((products) => {
-              return messaging.sendProductsCarousel(shop, user.facebookId, products);
-            }).then(() => {
+            let categorie = 'all';
+            if(spliitedPayload.length > 1) categorie = spliitedPayload[1];
+            messaging.sendMoreProducts(shop, user, categorie).then(() => {
               resolve();
             }).catch((err) => {
               reject(err);
-            })
+            });
           }
           break;
 
@@ -351,7 +359,7 @@ function managePostback(shop, message){
           let message = "";
           if(shop.isClosed()) message = "Désolé, je suis parti dormir 😴.\nMais dis moi comment je peut t'aider, et je reviens vers toi très vite 🏃";
           else message = "J'acours 🏃 ! En attendant, peux tu me dire comment je peux t'aider ?"
-          sendMessage(shop, user.facebookId, message).then(() => {
+          sendMessage(shop, user.facebookId, message, "help").then(() => {
             resolve();
           }).catch((err) => {
             reject(err);
@@ -435,6 +443,18 @@ function managePostback(shop, message){
             }).catch((err) => {
               reject(err);
             })
+          }
+          break;
+
+        case "MORE_PRODUCTS":
+          if(shop.pageId === "1431299583791897" || shop.pageId === "301797346904516" ){
+            let categorie = 'all';
+            if(spliitedPayload.length > 1) categorie = spliitedPayload[1];
+            messaging.sendMoreProducts(shop, user, categorie).then(() => {
+              resolve();
+            }).catch((err) => {
+              reject(err);
+            });
           }
           break;
 

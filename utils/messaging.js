@@ -20,7 +20,7 @@ function sendInfosAfterAddCart(variant, shop, customer, cart){
       resolve();
     }).catch((err) => {
       reject(err);
-    })
+    });
   });
 
 
@@ -344,7 +344,7 @@ function sendProductInfos(shop, facebookId, productId, whatInfos){
 }
 
 
-function sendProductsCarousel(shop, userFacebookId, products){
+function sendProductsCarousel(shop, userFacebookId, products, withMore = false){
 
 
   let elements = [];
@@ -381,7 +381,26 @@ function sendProductsCarousel(shop, userFacebookId, products){
     });
 
     elements.push(element);
-  })
+  });
+
+  if(withMore){
+    let element = {
+      title: "Plus de produits",
+      subtitle:"Clique sur le bouton en dessous 👇 pour voir plus de produits.",
+      image_url: "https://storage.googleapis.com/cproject-158114/more_products.png",
+      buttons: [{
+        type: "postback",
+        title: "Produits Filles 👧",
+        payload: `MORE_PRODUCTS:fille`
+      },{
+        type: "postback",
+        title: "Produits Garçons 👦",
+        payload: `MORE_PRODUCTS:garcon`
+      }]
+    };
+
+    elements.push(element);
+  }
 
   const messageData = {
     recipient: {
@@ -401,7 +420,6 @@ function sendProductsCarousel(shop, userFacebookId, products){
 
   return new Promise((resolve, reject) => {
     facebook.send(messageData, shop.pageToken).then((parsedBody) => {
-
       //Save the fact that we offered this product to this user
       return User.findOne({facebookId : userFacebookId});
     }).then((user) => {
@@ -417,7 +435,20 @@ function sendProductsCarousel(shop, userFacebookId, products){
 
       return user.save();
     }).then((user) => {
-      resolve();
+
+      if(elements.length > 1){
+        const message =  `J'ai trouvé ${products.length} produits 💪. Défile vers la droite 👉 pour tous les voir.`;
+        facebook.sendMessage(shop, userFacebookId, message).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        })
+      }
+      else{
+        resolve();
+      }
+
+
     }).catch((err) => {
       if(err === "nouser") resolve();
       reject(err);
@@ -490,7 +521,39 @@ function chooseProductSize(shop, user, product){
   });
 }
 
+
+function sendMoreProducts(shop, user, categorie){
+
+  return new Promise((resolve, reject) => {
+
+
+    Product.randomProducts(shop, user, categorie).then((products) => {
+
+      if(products.length == 0){
+        const message = "Désolé, je n'ai pas trouvé d'autres produits 😢";
+        facebook.sendMessage(shop, user.facebookId, message).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        });
+      }
+      else{
+        sendProductsCarousel(shop, user.facebookId, products, true).then(() => {
+          resolve();
+        }).catch((err) => {
+          reject(err);
+        })
+      }
+
+    }).catch((err) => {
+      reject(err);
+    });
+
+  });
+}
+
 module.exports = {
+  sendMoreProducts,
   chooseProductSize,
   chooseProductColor,
   sendProductInfos,
