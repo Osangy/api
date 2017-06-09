@@ -77,7 +77,7 @@ const UserSchema = mongoose.Schema({
       source: String,
       typeRef: String,
       ad_id: String
-    },
+    }
 }, {
   timestamps: true
 });
@@ -330,6 +330,7 @@ UserSchema.statics.gotReferral = function(message){
   });
 
 }
+
 
 //================================
 // Shop Schema
@@ -644,7 +645,7 @@ ProductSchema.statics.searchProducts = function(searchString, shop, limit){
 }
 
 
-ProductSchema.statics.randomProducts = function(shop, user, categorie){
+ProductSchema.statics.randomProducts = function(shop, user, categories){
 
   // const avoidProductsId = user.offeredProducts.map((id) => {
   //   logging.info(id);
@@ -653,9 +654,9 @@ ProductSchema.statics.randomProducts = function(shop, user, categorie){
 
   //logging.info(avoidProductsId);
   let conditions = [];
-  logging.info(categorie)
-  if(categorie === 'all') conditions = [{shop: shop},{ _id : {$nin : user.offeredProducts}}]
-  else conditions = [{shop: shop},{ _id : {$nin : user.offeredProducts}}, {categories : categorie}]
+  logging.info(categories)
+  if(categories === 'all') conditions = [{shop: shop},{ _id : {$nin : user.offeredProducts}}]
+  else conditions = [{shop: shop},{ _id : {$nin : user.offeredProducts}}, {categories : {$all: categories}}]
 
   return new Promise((resolve, reject) => {
     Product.find({
@@ -1128,10 +1129,6 @@ const ConversationSchema = mongoose.Schema({
       type: Number,
       default: 0
     },
-    isAvailable: {
-      type: Boolean,
-      default: false
-    },
     isInRobotMode: {
       type: Boolean,
       default: true
@@ -1141,20 +1138,26 @@ const ConversationSchema = mongoose.Schema({
       type: Number,
       default: 0
     },
-    lastMessageDate: Date
+    lastMessageDate: Date,
+    action: {
+      name: String,
+      parameters: Schema.Types.Mixed,
+      incomplete: Boolean
+    },
+    aiContexts : String
   },
   {
     timestamps: true
   });
 
 ConversationSchema.pre('save', function (next) {
-    this.newAvailable = this.isModified("isAvailable");
-    next();
+  this.wasNew = this.isNew;
+  next();
 });
 
 //After a message save we increment the nb of message of the conversation
 ConversationSchema.post('save', function(conversation) {
-  if(this.newAvailable){
+  if(this.wasNew){
     Shop.findById(conversation.shop).then((shop) => {
       if(shop){
         mailgun.sendNewConversationMail(shop.email, null).then(() => {
@@ -1264,10 +1267,6 @@ ConversationSchema.statics.newMessage = function(message){
 
       conversation.lastMessageDate = message.timestamp;
       actions.push(conversation.save())
-
-      if(conversation.isAvailable){
-        pubsub.publish('newConversationChannel', conversation);
-      }
       //if(conversation.nbMessages === 1) actions.push(mailgun.sendNewConversationMail(message.shop.email, message));
 
       return Promise.all(actions);
@@ -1308,6 +1307,50 @@ ConversationSchema.methods.addRedisMessages = function(shop, user){
 
 }
 
+ConversationSchema.methods.updateContext = function(aiResponse){
+
+  return new Promise((resolve, reject) => {
+
+    let conversation = this;
+
+    let action = '';
+
+    if(!conversation.action){
+      conversation.action = {
+        name: action,
+        parameters : {},
+        incomplete: true
+      }
+    }
+
+    let parameters = aiResponse.result.parameters;
+    conversation.action.name = aiResponse.result.action;
+    conversation.action.parameters = _.pickBy(parameters, (v) => ((v != null) && (v.length > 0)));
+    conversation.action.incomplete = aiResponse.result.actionIncomplete;
+    conversation.aiContexts = JSON.stringify(aiResponse.result.contexts);
+    // user.context.parameters = _.mapKeys(parameters, function(value, key) {
+    //   if(value){
+    //     logging.info(value);
+    //     return key;
+    //     // logging.info(value);
+    //     // user.context.parameters[key] = value;
+    //   }
+    // });
+
+    conversation.save().then((conversationSaved) => {
+      pubsub.publish('newConversationChannel', conversationSaved);
+      resolve(conversationSaved);
+    }).catch((err) => {
+      reject(err);
+    })
+
+
+
+  });
+
+
+
+}
 
 /*
 * CART SCHEMA

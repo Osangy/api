@@ -174,20 +174,21 @@ function manageMessage(messageObject, shop){
       logging.info(`USER ID : ${messageObject.sender.id}`);
       Message.createFromFacebook(messageObject, shop).then((message) => {
 
-        //Try API.Ai
-        ai.sendEvent(message.sender, messageObject);
-
         //Send to subscriptions the new message
         pubsub.publish('messageAdded', message);
         finalMessage = message;
-        return managePayloadAction(shop, message);
+        return managePayloadAction(shop, finalMessage);
       }).then((res) => {
         if(res === "startFlow") throw "startFlow";
         return flows.manageFlow(finalMessage);
-      }).then(() => {
+      }).then((res) => {
+        if(res && res === 'noflow'){
+          //Try API.Ai
+          ai.sendMessageEvent(finalMessage.conversation, finalMessage.sender, messageObject);
+        }
         resolve();
       }).catch((err) => {
-        if(err === "startFlow") resolve();
+        if(err === "startFlow" || err === 'noai') resolve();
         else reject(err);
       });
     }
@@ -288,29 +289,29 @@ function managePayloadAction(shop, message){
           }
           break;
 
-        case "MORE_PRODUCTS":
-          if(shop.pageId === "1431299583791897" || shop.pageId === "301797346904516" ){
-            let categorie = 'all';
-            if(spliitedPayload.length > 1) categorie = spliitedPayload[1];
-            messaging.sendMoreProducts(shop, user, categorie).then(() => {
-              resolve();
-            }).catch((err) => {
-              reject(err);
-            });
-          }
-          break;
-
-        case "MORE_PRODUCTS_2":
-          if(shop.pageId === "1431299583791897" || shop.pageId === "301797346904516" ){
-            let categorie = 'all';
-            if(spliitedPayload.length > 1) categorie = spliitedPayload[1];
-            messaging.sendMoreProducts(shop, user, categorie).then(() => {
-              resolve();
-            }).catch((err) => {
-              reject(err);
-            });
-          }
-          break;
+        // case "MORE_PRODUCTS":
+        //   if(shop.pageId === "1431299583791897" || shop.pageId === "301797346904516" ){
+        //     let categorie = 'all';
+        //     if(spliitedPayload.length > 1) categorie = spliitedPayload[1];
+        //     messaging.sendMoreProducts(shop, user, categorie).then(() => {
+        //       resolve();
+        //     }).catch((err) => {
+        //       reject(err);
+        //     });
+        //   }
+        //   break;
+        //
+        // case "MORE_PRODUCTS_2":
+        //   if(shop.pageId === "1431299583791897" || shop.pageId === "301797346904516" ){
+        //     let categorie = 'all';
+        //     if(spliitedPayload.length > 1) categorie = spliitedPayload[1];
+        //     messaging.sendMoreProducts(shop, user, categorie).then(() => {
+        //       resolve();
+        //     }).catch((err) => {
+        //       reject(err);
+        //     });
+        //   }
+        //   break;
 
 
         default:
@@ -457,6 +458,10 @@ function managePostback(shop, message){
             });
           }
           break;
+
+          case "SEE_PRODUCTS":
+            ai.sendEvent(conversation, user, 'search_product');
+            break;
 
         default:
           logging.info("Does not know this postback");

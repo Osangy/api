@@ -42,7 +42,6 @@ function startFlow(user, flowType, product, shop){
         arrayFields.push(_.join(sizes, ':'));
       }
     }
-    logging.info(arrayFields);
 
     stopAnyFlow(user).then(() => {
       return redis.getClient().hmsetAsync(`flow:${user.id}`, arrayFields);
@@ -117,7 +116,7 @@ function manageFlow(message){
     }).then((res) => {
       resolve(res);
     }).catch((err) => {
-      if(err === "noflow") resolve();
+      if(err === "noflow") resolve('noflow');
       else reject(err);
     });
 
@@ -164,7 +163,6 @@ function manageNeedColor(user, actualFlow, message, product){
       });
     }
     else{
-      logging.info(`We have our color : ${text}`);
       redis.getClient().hmsetAsync(`flow:${user.id}`, ['color', text]).then(() => {
         return manageFlowNextStep(user, message.shop, product);
       }).then(() => {
@@ -190,7 +188,6 @@ function manageNeedSize(user, actualFlow, message, product){
       });
     }
     else{
-      logging.info(`We have our size : ${text}`);
       redis.getClient().hmsetAsync(`flow:${user.id}`, ['size', text]).then(() => {
         return manageFlowNextStep(user, message.shop, product);
       }).then(() => {
@@ -203,8 +200,6 @@ function manageNeedSize(user, actualFlow, message, product){
 }
 
 function finishAddCart(shop, user, product, flow){
-  logging.info(`We add this flow to the cart ${flow.toString()}`);
-
   return new Promise((resolve, reject) => {
     let variantSearch = {
       product: product,
@@ -213,10 +208,8 @@ function finishAddCart(shop, user, product, flow){
     if(flow.needColor) variantSearch.lowerColor = flow.color;
     if(flow.needSize) variantSearch.lowerSize = flow.size;
 
-    logging.info(variantSearch);
     Variant.findOne(variantSearch).then((variant) => {
       if(!variant) throw new Error("No variant found with these infos");
-      logging.info(`Variant found ${variant.toString()}`);
       return Cart.addProduct(variant.id, shop, user.id);
     }).then(() => {
       return stopAnyFlow(user);

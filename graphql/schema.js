@@ -10,6 +10,9 @@ import Promise from 'bluebird';
 import { pubsub } from './subscriptions';
 import moment from 'moment';
 import mongoose from 'mongoose';
+import Ai from '../ai';
+
+let ai = new Ai();
 
 Promise.promisifyAll(require("mongoose"));
 
@@ -68,10 +71,10 @@ const rootSchema = [`
     shop: Shop
 
     # A list of message
-    messages(limit:Int!, conversationId: String!, offset:Float!) : [Message]
+    messages(limit:Int!, conversationId: String!, offset:Float) : [Message]
 
     # The list of conversations of a page_id
-    conversation(limit: Int = 10): [Conversation]
+    conversations(limit: Int = 10): [Conversation]
 
     # The information about a user
     user(facebookId: String!): User
@@ -86,7 +89,7 @@ const rootSchema = [`
     cart(userId: ID!): Cart
 
     # The orders of a shop
-    orders(limit : Int = 30, userId: ID): [Order]
+    orders(limit : Int = 30): [Order]
 
     #The ads tracked for the shop
     ads(limit : Int = 30): [Ad]
@@ -151,6 +154,12 @@ const rootSchema = [`
     #Send products to the customer
     sendProducts(facebookId:String!, productIds:[ID]!):Boolean
 
+    #Set Robot on or off
+    setRobotActivity(conversation : ID!):Conversation
+
+    # Init robot context
+    initRobotContext(conversation : ID!): Conversation
+
   }
 
   type Subscription {
@@ -187,7 +196,7 @@ const rootResolvers = {
       logging.info("Querying Messages");
       const limitValidator = (limit > 100) ? 100 : limit;
       let messsagesToReturn;
-      const offsetDate = (moment.unix(offset)).toDate();
+      const offsetDate = offset ? (moment.unix(offset)).toDate() : moment();
       return Promise.resolve()
         .then(() => (
            Message.find({conversation: conversationId, timestamp:{"$lt" : offsetDate}}).sort({timestamp : -1}).populate("conversation").limit(limit)
@@ -213,7 +222,7 @@ const rootResolvers = {
           messsagesToReturn
         ))
     },
-    conversation(root, { limit }, context){
+    conversations(root, { limit }, context){
       logging.info("Querying Conversations");
       const limitValidator = (limit > 20) ? 10 : limit;
       return Conversation.find({ shop: context.user._id}).sort({lastMessageDate : -1}).limit(limit);
@@ -241,14 +250,9 @@ const rootResolvers = {
       logging.info("Querying Cart");
       return Cart.findOne({user: userId});
     },
-    orders(root, {limit, userId}, context){
+    orders(root, {limit}, context){
       logging.info("Querying Orders");
-      if(userId){
-        return Order.find({shop : context.user, user : userId}).sort({createdAt : -1}).limit(limit);
-      }
-      else{
-        return Order.find({shop : context.user}).sort({createdAt : -1}).limit(limit);
-      }
+      return Order.find({shop : context.user}).sort({createdAt : -1}).limit(limit);
     },
     ads(root, {limit}, context){
       logging.info("Querying Ads");
@@ -502,6 +506,31 @@ const rootResolvers = {
         .then(() => (
           true
         ))
+    },
+    setRobotActivity(root, {conversation}, context){
+      return Promise.resolve()
+        .then(() => (
+          Conversation.findById(conversation)
+        ))
+        .then((conversationObject) =>{
+          if(!conversationObject.isInRobotMode) conversationObject.isInRobotMode = true;
+          else conversationObject.isInRobotMode = false;
+
+          return conversationObject.save();
+        })
+        .then((conversationObject) => (
+          conversationObject
+        ))
+    },
+    initRobotContext(root, {conversation}, context){
+      return Promise.resolve()
+        .then(() => (
+          Conversation.findById(conversation).populate('shop')
+        ))
+        .then((conversationObject) => {
+          ai.initContext(conversationObject);
+          return conversationObject
+        })
     }
   },
   Subscription: {

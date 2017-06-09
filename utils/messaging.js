@@ -73,6 +73,11 @@ function sendInfosCartState(shop, customer){
                     title: 'Valider panier 🙌🏼',
                     messenger_extensions : true,
                     fallback_url : apiPayUrl
+                  },
+                  {
+                    type:'postback',
+                    title: "Autres produits 👀",
+                    payload:"SEE_PRODUCTS"
                   }
                 ]
               }
@@ -138,6 +143,11 @@ function sendListPoductsCart(shop, customer){
                   title: 'Valider panier 🙌🏼',
                   messenger_extensions : true,
                   fallback_url : apiPayUrl
+                },
+                {
+                  type:'postback',
+                  title: "Autres produits 👀",
+                  payload:"SEE_PRODUCTS"
                 }
               ]
             }
@@ -286,7 +296,7 @@ function sendProductInfos(shop, facebookId, productId, whatInfos){
         case "long":
           message = _.replace(product.longDescription, /<p>/g, '');
           message = _.replace(message, /<\/p>/g, '\n');
-          message = `ℹ️ Plus d'informations pour ${product.title} :\n\n` + message;
+          message = `ℹ️ Plus d'informations pour ${product.title} :\n\n${message}\n\nTu peux à présent ajouter le produit à ton panier en cliquant ci-dessous 👇`;
           break;
         case "morePhotos":
           if(product.images.length > 1){
@@ -304,6 +314,14 @@ function sendProductInfos(shop, facebookId, productId, whatInfos){
           content_type:'text',
           title: 'Ajouter au panier 🛒',
           payload: `ADD_CART:${product.id}`
+        },{
+          content_type:'text',
+          title: '➕ de produits',
+          payload: `MORE_PRODUCTS`
+        },{
+          content_type:'text',
+          title: 'Changer recherche 🔍',
+          payload: `INIT_SEARCH_PRODUCT`
         }];
         return facebook.sendTextWithQuickReplies(shop, facebookId, message, replies, "sendInfos");
         // facebook.sendMessage(shop, facebookId, message, "sendInfos").then((message) => {
@@ -323,6 +341,14 @@ function sendProductInfos(shop, facebookId, productId, whatInfos){
             content_type:'text',
             title: 'Ajouter au panier 🛒',
             payload: `ADD_CART:${product.id}`
+          },{
+            content_type:'text',
+            title: '➕ de produits',
+            payload: `MORE_PRODUCTS`
+          },{
+            content_type:'text',
+            title: 'Changer recherche 🔍',
+            payload: `INIT_SEARCH_PRODUCT`
           }];
           const message = "Tu peux à présent ajouter le produit à ton panier en cliquant ci-dessous 👇👇👇"
           return facebook.sendTextWithQuickReplies(shop, facebookId, message, replies, "sendInfos");
@@ -383,24 +409,24 @@ function sendProductsCarousel(shop, userFacebookId, products, withMore = false){
     elements.push(element);
   });
 
-  if(withMore){
-    let element = {
-      title: "Plus de produits",
-      subtitle:"Clique sur le bouton en dessous 👇 pour voir plus de produits.",
-      image_url: "https://storage.googleapis.com/cproject-158114/more_products.png",
-      buttons: [{
-        type: "postback",
-        title: "Produits Filles 👧",
-        payload: `MORE_PRODUCTS:fille`
-      },{
-        type: "postback",
-        title: "Produits Garçons 👦",
-        payload: `MORE_PRODUCTS:garcon`
-      }]
-    };
-
-    elements.push(element);
-  }
+  // if(withMore){
+  //   let element = {
+  //     title: "Plus de produits",
+  //     subtitle:"Clique sur le bouton en dessous 👇 pour voir plus de produits.",
+  //     image_url: "https://storage.googleapis.com/cproject-158114/more_products.png",
+  //     buttons: [{
+  //       type: "postback",
+  //       title: "Produits Filles 👧",
+  //       payload: `MORE_PRODUCTS:fille`
+  //     },{
+  //       type: "postback",
+  //       title: "Produits Garçons 👦",
+  //       payload: `MORE_PRODUCTS:garcon`
+  //     }]
+  //   };
+  //
+  //   elements.push(element);
+  // }
 
   const messageData = {
     recipient: {
@@ -436,9 +462,23 @@ function sendProductsCarousel(shop, userFacebookId, products, withMore = false){
       return user.save();
     }).then((user) => {
 
-      if(elements.length > 1){
-        const message =  `J'ai trouvé ${products.length} produits 💪. Défile vers la droite 👉 pour tous les voir.`;
-        facebook.sendMessage(shop, userFacebookId, message).then(() => {
+      if(withMore){
+
+        const message =  `J'ai trouvé ${products.length} produits 💪. Défile vers la droite pour tous les voir 👉`;
+        const replies = [{
+          content_type:'text',
+          title: '➕ de produits',
+          payload: `MORE_PRODUCTS`
+        },{
+          content_type:'text',
+          title: 'Changer recherche 🔍',
+          payload: `INIT_SEARCH_PRODUCT`
+        },{
+          content_type:'text',
+          title: 'Autre question ❓❓❓',
+          payload: `OTHER_QUESTION`
+        }];
+        facebook.sendTextWithQuickReplies(shop, userFacebookId, message, replies, "ai").then(() => {
           resolve();
         }).catch((err) => {
           reject(err);
@@ -522,12 +562,12 @@ function chooseProductSize(shop, user, product){
 }
 
 
-function sendMoreProducts(shop, user, categorie){
+function sendMoreProducts(shop, user, categories){
 
   return new Promise((resolve, reject) => {
 
 
-    Product.randomProducts(shop, user, categorie).then((products) => {
+    Product.randomProducts(shop, user, categories).then((products) => {
 
       if(products.length == 0){
         const message = "Désolé, je n'ai pas trouvé d'autres produits 😢";

@@ -41,6 +41,12 @@ export const schema = [`
     message: String
   }
 
+  type Action {
+    name: String!
+    incomplete: Boolean!
+    parameters: JSON
+  }
+
 
   # A message sent to or by the page
   type Message {
@@ -141,6 +147,10 @@ export const schema = [`
 
     #The date the customer read for the last time
     lastCustomerRead: Float
+
+    isInRobotMode: Boolean
+
+    action: Action
 
   }
 
