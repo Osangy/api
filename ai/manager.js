@@ -5,6 +5,7 @@ import mongoose from 'mongoose';
 import { sendMessage, sendTextWithQuickReplies } from '../utils/facebookUtils';
 import messaging from '../utils/messaging';
 import flows from '../flows';
+import mailgun from '../utils/mailgun';
 
 let ObjectId = mongoose.Schema.ObjectId;
 
@@ -114,6 +115,8 @@ function chooseAction(response, conversation){
         case 'human_help':
           //TODO: Find a human
           sendMessage(conversation.shop, conversation.user.facebookId, responseText, 'ai').then(() => {
+            return mailgun.sendNeedHumanMail(conversation);
+          }).then(() => {
             resolve();
           }).catch((err) => {
             reject(err);

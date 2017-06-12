@@ -43,6 +43,38 @@ function sendNewConversationMail(mail, message){
 
 }
 
+function sendNeedHumanMail(conversation){
+
+  let mailgun = new Mailgun({apiKey: config.MAILGUN_API_KEY, domain: config.MAILGUN_DOMAIN});
+
+  const data = {
+    from: config.MAILGUN_FROM_EMAIL,
+    to: conversation.shop.email,
+    subject: `Need Human for ${conversation.user.firstName} ${conversation.user.lastName}`,
+    text: `${conversation.user.firstName} ${conversation.user.lastName} need your help.`
+  };
+
+
+
+  return new Promise((resolve, reject) => {
+
+    mailgun.messages().send(data, function (error, body) {
+        if (error){
+          logging.info("PROBLEM EMAIL");
+          logging.info(error);
+          reject(error);
+        }
+        else{
+          logging.info("SENT EMAIL");
+          logging.info(body);
+          resolve(body);
+        }
+    });
+  });
+
+}
+
 module.exports = {
-   sendNewConversationMail
+   sendNewConversationMail,
+   sendNeedHumanMail
 };
