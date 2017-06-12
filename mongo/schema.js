@@ -42,8 +42,8 @@ export const schema = [`
   }
 
   type Action {
-    name: String!
-    incomplete: Boolean!
+    name: String
+    incomplete: Boolean
     parameters: JSON
   }
 

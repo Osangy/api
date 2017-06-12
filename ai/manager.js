@@ -36,13 +36,13 @@ function manageResponseApiAi(response){
       console.log("Response : ");
       logging.info(`Response to give : ${responseText}`);
 
-      if(response.result.contexts.length > 0){
-        response.result.contexts.forEach((context) => console.log(context));
-      }
+      // if(response.result.contexts.length > 0){
+      //   response.result.contexts.forEach((context) => console.log(context));
+      // }
 
       return new Promise((resolve, reject) => {
         let conv;
-        Conversation.findOne({'user._id' : ObjectId(response.sessionId)}).populate('shop user').then((conversation) => {
+        Conversation.findById(response.sessionId).populate('shop user').then((conversation) => {
           if(conversation){
             conv = conversation;
             if(!conversation.isInRobotMode) throw 'noresponse';
