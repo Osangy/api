@@ -186,7 +186,7 @@ exports.setPersistentMenu = function(req, res){
     }
     else{
       const activate = req.params.activate === 'true' ? true : false
-      setPersistentMenu(shop, true).then((body) => {
+      setPersistentMenu(shop, activate).then((body) => {
         res.send(body);
       }).catch((err) => {
         res.status(500).send(err.message);

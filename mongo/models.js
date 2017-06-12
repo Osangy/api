@@ -1715,6 +1715,8 @@ OrderSchema.post('save', function () {
         this.user.lastShippingAddress = this.shippingAddress;
         this.user.save();
 
+        mailgun.sendNewOrder(this);
+
         if(this.user.adSource != null){
           Ad.findById(this.user.adSource).then((ad) => {
             ad.nbOrders++

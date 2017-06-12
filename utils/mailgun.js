@@ -74,7 +74,37 @@ function sendNeedHumanMail(conversation){
 
 }
 
+function sendNewOrder(order){
+  let mailgun = new Mailgun({apiKey: config.MAILGUN_API_KEY, domain: config.MAILGUN_DOMAIN});
+
+  const data = {
+    from: config.MAILGUN_FROM_EMAIL,
+    to: order.shop.email,
+    subject: `New Order 💵`,
+    text: `${order.user.firstName} ${order.user.lastName} just ordered products. The total ammount is ${order.price}€`
+  };
+
+
+
+  return new Promise((resolve, reject) => {
+
+    mailgun.messages().send(data, function (error, body) {
+        if (error){
+          logging.info("PROBLEM EMAIL");
+          logging.info(error);
+          reject(error);
+        }
+        else{
+          logging.info("SENT EMAIL");
+          logging.info(body);
+          resolve(body);
+        }
+    });
+  });
+}
+
 module.exports = {
    sendNewConversationMail,
-   sendNeedHumanMail
+   sendNeedHumanMail,
+   sendNewOrder
 };

@@ -1040,19 +1040,21 @@ function setPersistentMenu(shop, activate){
         method: 'POST'
       }
 
+      let rep;
       rp(options).then((parsedBody) => {
         logging.info("Added persistent menu");
         logging.info(parsedBody);
+        rep = parsedBody;
         return shop.save();
       }).then((shop) => {
-        resolve(shop);
+        resolve(rep);
       }).catch((error) => {
         reject(error);
       })
     }
     else{
-      removeMessengerProfileInfos(shop, ['persistent_menu']).then(() => {
-        resolve();
+      removeMessengerProfileInfos(shop, ['persistent_menu']).then((rep) => {
+        resolve(rep);
       }).catch((err) => {
         reject(err);
       })
